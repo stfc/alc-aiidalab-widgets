@@ -84,4 +84,4 @@ jobs:
           pip install sphinx sphinx-toolbox piccolo-theme 
           
       - name: Build the documentation 
-        run: sphinx-build -b html docs/source/ docs/build/html 
+        run: sphinx-build -b html docs/src/ docs/build/html 
