@@ -1,0 +1,76 @@
+[build-system]
+requires = ["uv-build"]
+build-backend = "uv_build"
+
+
+[project]
+version = "0.0.1"
+name = "alc-aiidalab-widgets"
+description = "Commonly used components for ALC managed AiiDAlab plugins"
+authors = [
+    { name = "Dr. Benjamin T. Speake", email = "benjamin.speake@stfc.ac.uk" },
+]
+
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["aiida", "workflows", "ALC"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Framework :: AiiDA",
+    "Development Status :: 1 - Planning",
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Source = "https://github.com/stfc/alc-aiidalab-widgets"
+
+
+[project.optional-dependencies]
+dev = [
+    "aiida-core>=2.6", # Required to support aiida.tools.pytest_fixtures 
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.11.0",
+    "pre-commit",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+indent-width = 4
+exclude = ["docs/src/conf.py"]
+
+[tool.ruff.lint.per-file-ignores]
+
+[tool.ruff.lint]
+select = [
+    # flake8-bugbear
+    "B",
+    # pylint
+    "C",
+    "R",
+    # pydocstyle
+    "D",
+    # pycodestyle
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    "FA",
+    # isort
+    "I",
+    # pep8-naming
+    "N",
+    # pyupgrade
+    "UP",
+]
+ignore = ["C901"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.pylint]
+max-args = 10
