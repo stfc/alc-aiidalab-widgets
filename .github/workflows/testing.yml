@@ -53,7 +53,7 @@ jobs:
 
       - name: Run the test suite \w coverage 
         if: contains(matrix.python-version, '3.12')
-        run: pytest --cov=alc-aiidalab-widgets --cov-report xml:coverage.xml
+        run: pytest --cov=alc_aiidalab_widgets --cov-report xml:coverage.xml
 
       - name: Run the test suite without coverage 
         if:  ${{ !contains(matrix.python-version, '3.12') }}
