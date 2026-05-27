@@ -27,6 +27,7 @@ dependencies = [
     "ipywidgets",
     "traitlets",
     "aiida-core>=2.6",
+    "weas-widget",
 ]
 
 [project.urls]
@@ -34,14 +35,8 @@ Source = "https://github.com/stfc/alc-aiidalab-widgets"
 
 
 [project.optional-dependencies]
-dev = [
-    "aiida-core>=2.6", # Required to support aiida.tools.pytest_fixtures 
-    "pytest>=8.0",
-    "pytest-cov>=6.0",
-    "ruff>=0.11.0",
-    "pre-commit",
-    "weas-widget",
-]
+dev = ["pytest>=8.0", "pytest-cov>=6.0", "ruff>=0.11.0", "pre-commit"]
+docs = ["sphinx>=8.0.2"]
 
 [tool.ruff]
 target-version = "py312"
