@@ -22,7 +22,12 @@ classifiers = [
     "Development Status :: 1 - Planning",
 ]
 requires-python = ">=3.10"
-dependencies = ["aiidalab-widgets-base", "ipywidgets", "traitlets"]
+dependencies = [
+    "aiidalab-widgets-base",
+    "ipywidgets",
+    "traitlets",
+    "aiida-core>=2.6",
+]
 
 [project.urls]
 Source = "https://github.com/stfc/alc-aiidalab-widgets"
