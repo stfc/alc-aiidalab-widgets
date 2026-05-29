@@ -51,18 +51,21 @@ class FileUploadWidget(HBox, tl.HasTraits):
     def _on_file_upload(self, _):
         """Handle file upload events."""
         if self.file_upload.value:
+            # Handle data storage differences between ipywidgets v7 and v8+
             try:
                 self.file_dict = self.file_upload.value[
                     list(self.file_upload.value.keys())[0]
-                ]
-                self.file_handle.value = self.file_dict["metadata"]["name"]
+                ]["metadata"]
+                self.file_dict["content"] = self.file_upload.data[0]
+                self.file_handle.value = self.file_dict["name"]
             except AttributeError:
                 self.file_dict = self.file_upload.value[0]
-                self.file_handle.value = self.file_dict["name"]
             finally:
+                self.file_handle.value = self.file_dict["name"]
                 self.file = self.get_aiida_file_object()
         else:
             self.file_handle.value = ""
+        print(self.file_dict)
         return
 
     def get_file_contents(self) -> BytesIO | None:
@@ -74,10 +77,7 @@ class FileUploadWidget(HBox, tl.HasTraits):
     def filename(self) -> str:
         """Get the name of the uploaded file."""
         if self.file_dict is not None:
-            try:
-                return self.file_dict["metadata"]["name"]
-            except KeyError:
-                return self.file_dict["name"]
+            return self.file_dict["name"]
         return ""
 
     def get_aiida_file_object(self):

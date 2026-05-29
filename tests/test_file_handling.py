@@ -4,6 +4,7 @@ import datetime
 
 from aiida.orm import SinglefileData
 from ipywidgets import FileUpload
+from traitlets.traitlets import TraitError
 
 from alc_aiidalab_widgets.widgets.file_handling import FileUploadWidget
 
@@ -17,15 +18,32 @@ def test_file_upload():
 
     # Simulate file upload
     test_file_content = b"Test file content..."
-    widget.file_upload.value = (
-        {
-            "name": "test.txt",
-            "type": "text",
-            "size": len(test_file_content),
-            "last_modified": datetime.datetime.now(),
-            "content": memoryview(test_file_content),
-        },
-    )
+    try:
+        widget.file_upload.value = (
+            {
+                "name": "test.txt",
+                "type": "text",
+                "size": len(test_file_content),
+                "last_modified": datetime.datetime.now(),
+                "content": memoryview(test_file_content),
+            },
+        )
+    except TraitError:
+        # This implies using pre- v8 ipywidgets so must use different approach
+        widget.file_upload.metadata = [
+            {
+                "name": "test.txt",
+                "type": "text",
+                "size": len(test_file_content),
+                "last_modified": datetime.datetime.now(),
+                # "content": test_file_content,
+            },
+        ]
+        widget.file_upload.data = [
+            test_file_content,
+        ]
+        widget.file_upload._counter += 1
+
     assert widget.has_file
 
     assert widget.file_dict.get("name") == "test.txt"
