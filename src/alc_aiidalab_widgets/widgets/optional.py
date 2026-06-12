@@ -50,7 +50,6 @@ class Optional(Generic[T], ipw.HBox):
             (self._target, "value"),
             lambda x: x if x is not None else self._target.value,
         )
-        print("Wek")
         self.value = initial_value
 
     def _set_value(self, change: dict[str, T | bool]):
