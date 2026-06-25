@@ -22,7 +22,7 @@ class FileUploadWidget(HBox, tl.HasTraits):
             Keyword arguments passed to the parent class's constructor.
         """
         super().__init__(**kwargs)
-        self.file_dict = None
+        self.file_dict = {}
 
         self.file_upload = FileUpload(
             accept="",
@@ -69,19 +69,19 @@ class FileUploadWidget(HBox, tl.HasTraits):
 
     def get_file_contents(self) -> BytesIO | None:
         """Get the contents of the uploaded file as a BytesIO object."""
-        if self.file_dict is not None:
+        if self.file_dict:
             return BytesIO(self.file_dict["content"])
         return None
 
     def filename(self) -> str:
         """Get the name of the uploaded file."""
-        if self.file_dict is not None:
+        if self.file_dict:
             return self.file_dict["name"]
         return ""
 
     def get_aiida_file_object(self):
         """Get the uploaded file as an AiiDA SinglefileData object."""
-        if self.file_dict is not None:
+        if self.file_dict:
             return SinglefileData(
                 file=self.get_file_contents(),
                 filename=self.filename(),

@@ -14,7 +14,7 @@ class Status(ipw.HTML):
         FAILURE = auto()
         WARNING = auto()
 
-    status: _Stat | None = None
+    status: _Stat | None
     MAIN_STYLING: ClassVar[str] = "<p style='color: {colour};'>{message}</p>"
 
     def __init__(self, *args, message: str = "", state: _Stat | None = None, **kwargs):

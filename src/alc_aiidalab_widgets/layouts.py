@@ -1,6 +1,6 @@
 """Basic step layout."""
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import Any
 
 import ipywidgets as ipw
@@ -18,19 +18,43 @@ class Step(ipw.AppLayout):
         title: str,
         info: str,
         widgets: Iterable[ipw.Widget],
+        submittable: bool = True,
         **kwargs: Any,
     ) -> None:
-        self.title = ipw.HTML(f"<h3>{title}</h3>")
-        self.info = ipw.HTML(f"<p>{info}</p>")
-        self.status = Status()
-        self.logspace = ipw.Output()
+        self.title = ipw.HTML(f"<h3>{title}</h3>", layout={"margin": "auto"})
+        self.info = ipw.HTML(f"<p>{info}</p>", layout={"margin": "auto"})
+        self.status = Status(layout={"margin": "auto"})
+        self.logspace = ipw.Output(layout={"margin": "auto"})
+
+        if submittable:
+            self.submit_btn = ipw.Button(
+                description="Submit",
+                button_style="success",
+                tooltip="Submit the data to the workflow",
+                icon="check",
+                layout={"margin": "auto", "width": "60%"},
+            )
+            self.submit_btn.on_click(self.submit)
+        else:
+            self.submit_btn = ipw.HBox()
 
         super().__init__(
-            header=ipw.VBox([self.title, self.info]),
-            center=ipw.VBox([*widgets]),
-            footer=ipw.VBox([self.status, self.logspace]),
+            header=ipw.VBox(
+                [self.title, self.info], layout={"margin": "auto", "width": "100%"}
+            ),
+            center=ipw.VBox([*widgets], layout={"margin": "auto", "width": "100%"}),
+            footer=ipw.VBox(
+                [self.submit_btn, self.status, self.logspace],
+                layout={"margin": "auto", "width": "100%"},
+            ),
             **kwargs,
         )
+
+    def submit(self, _):
+        """Submit data."""
+        if self.status.status is Status._Stat.SUCCESS:
+            self.submit_btn.disabled = True
+            self.submit_btn.description = "Submitted"
 
 
 class ParameterStep(Step):
@@ -43,7 +67,8 @@ class ParameterStep(Step):
         title: str,
         info: str,
         widgets: dict[str, ipw.ValueWidget],
-        exclude: set[str] = frozenset(),
+        structure: Iterable[ipw.Widget] | None = None,
+        exclude: Collection[str] = (),
         **kwargs: Any,
     ) -> None:
         if default_args is None:
@@ -52,14 +77,32 @@ class ParameterStep(Step):
         filtered = {
             name: widget for name, widget in widgets.items() if name not in exclude
         }
-        param_block = ParametersBlock(title, filtered, default_args)
+        self.param_block = ParametersBlock(title, filtered, default_args)
 
         self.widgets_map = widgets
+
+        if structure is None:
+            structure = widgets.values()
 
         super().__init__(
             title=title,
             info=info,
-            widgets=widgets.values(),
-            right_sidebar=param_block,
+            widgets=structure,
+            right_sidebar=self.param_block,
             **kwargs,
         )
+
+    def get(self, *, all: bool = False) -> dict[str, Any]:
+        """Get parameters as dictionary.
+
+        Parameters
+        ----------
+        widgets : dict[str, ipw.ValueWidget], optional
+            Override default widget set.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary of current values.
+        """
+        return self.param_block.get(all=all)
