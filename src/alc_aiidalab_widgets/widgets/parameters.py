@@ -20,7 +20,7 @@ class ParametersBlock(ipw.GridspecLayout):
     ----------
     name : str
         Name of parameter block/tab.
-    widget_ref : dict[str, ipw.Widget]
+    widget_ref : dict[str, ipw.ValueWidget]
         Dictionary mapping parameter names to widgets.
     default_args : dict[str, Any]
         Dictionary of settings blocks -> Parameter settings.
@@ -36,15 +36,14 @@ class ParametersBlock(ipw.GridspecLayout):
     def __init__(
         self,
         name: str,
-        widget_ref: dict[str, ipw.Widget],
+        widget_ref: dict[str, ipw.ValueWidget],
         default_args: dict[str, dict[str, Any]],
         **kwargs,
     ):
-        if any(default.keys() ^ widget_ref.keys() for default in default_args.values()):
-            raise ValueError("Key mismatch between defaults and widgets")
 
         self.name = name
         self.widget_ref = widget_ref
+
         self.output = ipw.Output()
         self.save_button = Download(
             description="Save",
@@ -62,7 +61,7 @@ class ParametersBlock(ipw.GridspecLayout):
         )
         self.load_button.observe(self._load, names="value")
 
-        self.defaults = default_args
+        self.defaults = {key: self.get(all=True) | val for key, val in default_args.items()}
         self.defaults_box = ipw.Dropdown(
             options=default_args.items(),
             value=next(iter(default_args.values()), {}),
@@ -79,12 +78,14 @@ class ParametersBlock(ipw.GridspecLayout):
 
         self.set(self.defaults_box.value)
 
-    def get(self, widgets: dict[str, ipw.Widget] | None = None) -> dict[str, Any]:
+    def get(
+        self, widgets: dict[str, ipw.ValueWidget] | None = None, *, all: bool = False
+    ) -> dict[str, Any]:
         """Get parameters as dictionary.
 
         Parameters
         ----------
-        widgets : dict[str, ipw.Widget], optional
+        widgets : dict[str, ipw.ValueWidget], optional
             Override default widget set.
 
         Returns
@@ -95,14 +96,22 @@ class ParametersBlock(ipw.GridspecLayout):
         if widgets is None:
             widgets = self.widget_ref
 
-        return {name: widget.value for name, widget in widgets.items()}
+        return {
+            name: widget.value
+            for name, widget in widgets.items()
+            if all
+            or (
+                not getattr(widget, "disabled", False)
+                and getattr(widget, "layout", ipw.Layout()).visibility != "hidden"
+            )
+        }
 
-    def get_json(self, widgets: dict[str, ipw.Widget] | None = None) -> str:
+    def get_json(self, widgets: dict[str, ipw.ValueWidget] | None = None) -> str:
         """Get parameters as JSON string.
 
         Parameters
         ----------
-        widgets : dict[str, ipw.Widget], optional
+        widgets : dict[str, ipw.ValueWidget], optional
             Override default widget set.
 
         Returns
@@ -110,10 +119,10 @@ class ParametersBlock(ipw.GridspecLayout):
         str
             JSON of parameters.
         """
-        return json.dumps(self.get(widgets))
+        return json.dumps(self.get(widgets, all=True))
 
     def set(
-        self, values: dict[str, Any], widgets: dict[str, ipw.Widget] | None = None
+        self, values: dict[str, Any], widgets: dict[str, ipw.ValueWidget] | None = None
     ) -> None:
         """Set parameters from dictionary.
 
@@ -121,7 +130,7 @@ class ParametersBlock(ipw.GridspecLayout):
         ----------
         values : dict[str, Any]
             Values to set.
-        widgets : dict[str, ipw.Widget], optional
+        widgets : dict[str, ipw.ValueWidget], optional
             Override default widget set.
         """
         if widgets is None:
