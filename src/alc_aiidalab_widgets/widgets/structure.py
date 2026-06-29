@@ -13,7 +13,7 @@ from weas_widget import WeasWidget
 class StructureViewWidget(VBox):
     """Visualise atom structure using weas_widget."""
 
-    def __init__(self, node: Node | None, **kwargs):
+    def __init__(self, node: Node | None = None, **kwargs):
         """StructureViewWidget constructor."""
         super().__init__(**kwargs)
         self.message = HTML("<p>No Structure Currently Loaded</p>")
