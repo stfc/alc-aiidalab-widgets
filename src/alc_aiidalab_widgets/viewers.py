@@ -1,6 +1,7 @@
 """Defines custom viewers for AiiDA nodes."""
 
 from alc_aiidalab_widgets.widgets.process_node_view import ProcessNodeViewerWidget
+from alc_aiidalab_widgets.widgets.structure import StructureViewWidget
 from alc_aiidalab_widgets.widgets.tables import XYZArrayDataTableWidget
 
 ALC_AIIDA_VIEWER_MAPPING = {
@@ -9,6 +10,7 @@ ALC_AIIDA_VIEWER_MAPPING = {
     "process.calculation.calcjob.CalcJobNode.": ProcessNodeViewerWidget,
     "process.workflow.workfunction.WorkFunctionNode.": ProcessNodeViewerWidget,
     "process.workflow.workchain.WorkChainNode.": ProcessNodeViewerWidget,
+    "data.core.structure.StructureData.": StructureViewWidget,
     # Custom redirections
     "xyz_table": XYZArrayDataTableWidget,
 }
