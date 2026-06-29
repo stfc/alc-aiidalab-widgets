@@ -1,9 +1,11 @@
 """Visualisation widget for an AiiDA process node."""
 
+from aiida.tools import delete_nodes
 from aiidalab_widgets_base.viewers import (
     ProcessNodeViewerWidget as AiiDAlabProcessNodeViewerWidget,
 )
-from ipywidgets import HTML, Text, Textarea, VBox
+from IPython.display import Javascript, display
+from ipywidgets import HTML, Button, Text, Textarea, VBox
 
 
 class ProcessNodeViewerWidget(VBox):
@@ -28,11 +30,22 @@ class ProcessNodeViewerWidget(VBox):
         )
         self.description_widget.observe(self._update_node_description, "value")
         self.process_view = AiiDAlabProcessNodeViewerWidget(self.process)
+
+        self.delete_btn = Button(
+            description="Delete Node",
+            button_style="warning",
+            tooltip="Delete Process Node From Database",
+            icon="trash",
+            layout={"align_self": "flex-end"},
+        )
+        self.delete_btn.on_click(self._delete_node)
+
         self.children = [
             self.label_widget,
             self.description_widget,
             HTML("<hr>"),
             self.process_view,
+            self.delete_btn,
         ]
         return
 
@@ -49,3 +62,8 @@ class ProcessNodeViewerWidget(VBox):
             return
         self.process.description = change["new"]
         return
+
+    def _delete_node(self, _) -> None:
+        """Delete the current process node from the database."""
+        delete_nodes([self.process.pk], dry_run=False)
+        display(Javascript("window.location.reload();"))
