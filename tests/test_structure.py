@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from aiida.orm import StructureData
+from aiida.orm import SinglefileData, StructureData
 from ipywidgets import HTML
 from weas_widget import WeasWidget
 
@@ -35,6 +35,32 @@ def test_structure_load_from_structuredata():
     with open(Path(__file__).resolve().parent / "data/water.xyz") as f:
         structure._parse_xyz(f.read())
     widget.assign_structure_from_structuredata(structure)
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 1
+    structure_ase = widget.viewer.to_ase()
+    assert structure_ase.get_atomic_numbers()[0] == 8
+    assert structure_ase.get_atomic_numbers()[1] == 1
+    assert structure_ase.get_atomic_numbers()[2] == 1
+
+
+def test_structure_initialise_from_structuredata():
+    """Create a WeasWidget viewer initialised with an AiiDA StructureData node."""
+    structure = StructureData()
+    with open(Path(__file__).resolve().parent / "data/water.xyz") as f:
+        structure._parse_xyz(f.read())
+    widget = StructureViewWidget(structure)
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 1
+    structure_ase = widget.viewer.to_ase()
+    assert structure_ase.get_atomic_numbers()[0] == 8
+    assert structure_ase.get_atomic_numbers()[1] == 1
+    assert structure_ase.get_atomic_numbers()[2] == 1
+
+
+def test_structure_initialise_from_singlefiledata():
+    """Create a WeasWidget viewer initialised with an AiiDA SingelfileData node."""
+    structure_file = SinglefileData(Path(__file__).resolve().parent / "data/water.xyz")
+    widget = StructureViewWidget(structure_file)
     assert isinstance(widget.viewer, WeasWidget)
     assert len(widget.children) == 1
     structure_ase = widget.viewer.to_ase()

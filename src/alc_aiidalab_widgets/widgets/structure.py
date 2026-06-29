@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from aiida.orm import StructureData
+from aiida.orm import Node, SinglefileData, StructureData
 from ase import Atoms
 from ase import io as ase_io
 from ipywidgets import HTML, VBox
@@ -13,7 +13,7 @@ from weas_widget import WeasWidget
 class StructureViewWidget(VBox):
     """Visualise atom structure using weas_widget."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, node: Node | None = None, **kwargs):
         """StructureViewWidget constructor."""
         super().__init__(**kwargs)
         self.message = HTML("<p>No Structure Currently Loaded</p>")
@@ -21,6 +21,14 @@ class StructureViewWidget(VBox):
         self.children = [
             self.message,
         ]
+        if isinstance(node, StructureData):
+            self.assign_structure_from_structuredata(node)
+        elif isinstance(node, SinglefileData):
+            self.assign_structure_from_file(node.filename, node.content)
+        elif node:
+            self.message.value = (
+                "<p>AiiDA Node type not supported by the structure viewer."
+            )
 
     def assign_structure_from_file(self, fname: str, content: bytes) -> None:
         """Visualise the given structure from a file.
