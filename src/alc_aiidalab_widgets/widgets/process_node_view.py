@@ -7,6 +7,8 @@ from aiidalab_widgets_base.viewers import (
 from IPython.display import Javascript, display
 from ipywidgets import HTML, Button, Text, Textarea, VBox
 
+from alc_aiidalab_widgets.widgets.mesages import MessageBox
+
 
 class ProcessNodeViewerWidget(VBox):
     """An extension of the AiiDAlab ProcessNodeViewerWidget."""
@@ -65,5 +67,29 @@ class ProcessNodeViewerWidget(VBox):
 
     def _delete_node(self, _) -> None:
         """Delete the current process node from the database."""
-        delete_nodes([self.process.pk], dry_run=False)
-        display(Javascript("window.location.reload();"))
+        children = list(self.children)
+        message_box = MessageBox(
+            (
+                "Are you sure you want to delete this Node, "
+                "all associated output nodes will also be deleted..."
+            ),
+            layout={"margin": "auto"},
+        )
+        children.append(message_box)
+        self.children = children
+        message_box.observe(self._accept_node_delete, "state")
+        self.delete_btn.disabled = True
+        # delete_nodes([self.process.pk], dry_run=False)
+        # display(Javascript("window.location.reload();"))
+        return
+
+    def _accept_node_delete(self, change: dict) -> None:
+        if change["new"]:
+            delete_nodes([self.process.pk], dry_run=False)
+            display(Javascript("window.location.reload();"))
+        else:
+            children = list(self.children)
+            children = children[:-1]
+            self.children = children
+            self.delete_btn.disabled = False
+        return
