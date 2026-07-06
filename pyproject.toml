@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 
 [project]
-version = "0.0.1"
+version = "0.1.0"
 name = "alc-aiidalab-widgets"
 description = "Commonly used components for ALC managed AiiDAlab plugins"
 authors = [
@@ -37,7 +37,7 @@ Source = "https://github.com/stfc/alc-aiidalab-widgets"
 docs = ["sphinx>=8.0.2", "sphinx-toolbox", "piccolo-theme"]
 lint = ["ruff>=0.11.0"]
 test = ["pytest>=8.0", "pytest-cov>=6.0"]
-dev = [{include-group = "lint"}, {include-group = "test"}, "pre-commit"]
+dev = [{ include-group = "lint" }, { include-group = "test" }, "pre-commit"]
 
 [project.optional-dependencies]
 
