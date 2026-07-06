@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from aiida.orm import SinglefileData, StructureData
+from aiida.orm import SinglefileData, StructureData, TrajectoryData
 from ipywidgets import HTML
 from weas_widget import WeasWidget
 
@@ -67,6 +67,26 @@ def test_structure_initialise_from_singlefiledata():
     assert structure_ase.get_atomic_numbers()[0] == 8
     assert structure_ase.get_atomic_numbers()[1] == 1
     assert structure_ase.get_atomic_numbers()[2] == 1
+
+
+def test_structure_initialise_from_trajectorydata():
+    """Create a WeasWidget viewer initialised with an AiiDA TrajectoryData node."""
+    structure_1 = StructureData()
+    with open(Path(__file__).resolve().parent / "data/water.xyz") as f:
+        structure_1._parse_xyz(f.read())
+    structure_2 = StructureData()
+    with open(Path(__file__).resolve().parent / "data/water.xyz") as f:
+        structure_2._parse_xyz(f.read())
+    trajectory = TrajectoryData()
+    trajectory.set_structurelist([structure_1, structure_2])
+    widget = StructureViewWidget(trajectory)
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 1
+    structure_ase = widget.viewer.to_ase()
+    assert len(structure_ase) == 2
+    assert structure_ase[0].get_atomic_numbers()[0] == 8
+    assert structure_ase[0].get_atomic_numbers()[1] == 1
+    assert structure_ase[0].get_atomic_numbers()[2] == 1
 
 
 def test_invalid_file_type():
