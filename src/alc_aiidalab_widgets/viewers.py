@@ -14,6 +14,7 @@ ALC_AIIDA_VIEWER_MAPPING = {
     # AiiDA data type labels
     "data.core.structure.StructureData.": StructureViewWidget,
     "data.core.singlefile.SinglefileData.": SinglefileDataViewer,
+    "data.core.array.trajectory.TrajectoryData.": StructureViewWidget,
     # Custom redirections
     "xyz_table": XYZArrayDataTableWidget,
 }

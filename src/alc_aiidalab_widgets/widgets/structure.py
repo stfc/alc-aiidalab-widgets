@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from aiida.orm import Node, SinglefileData, StructureData
+from aiida.orm import Node, SinglefileData, StructureData, TrajectoryData
 from ase import Atoms
 from ase import io as ase_io
 from ipywidgets import HTML, VBox
@@ -25,6 +25,8 @@ class StructureViewWidget(VBox):
             self.assign_structure_from_structuredata(node)
         elif isinstance(node, SinglefileData):
             self.assign_structure_from_file(node.filename, node.content)
+        elif isinstance(node, TrajectoryData):
+            self.assign_structure_from_trajectorydata(node)
         elif node:
             self.message.value = (
                 "<p>AiiDA Node type not supported by the structure viewer."
@@ -61,13 +63,13 @@ class StructureViewWidget(VBox):
                 ]
         return
 
-    def assign_structure_from_ase(self, structure: Atoms) -> None:
+    def assign_structure_from_ase(self, structure: Atoms | list[Atoms]) -> None:
         """Visualise the given ASE structure.
 
         Parameters
         ----------
-        structure: Atoms
-            The ASE atoms structure object.
+        structure: Atoms | list[Atoms]
+            The ASE atoms structure(s) object.
         """
         self.viewer = WeasWidget()
         self.viewer.from_ase(structure)
@@ -85,4 +87,23 @@ class StructureViewWidget(VBox):
             The AiiDA StructureData object.
         """
         self.assign_structure_from_ase(structure._get_object_ase())
+        return
+
+    def assign_structure_from_trajectorydata(self, trajectory: TrajectoryData) -> None:
+        """
+        Visualise a series of structures contained in an AiiDA TrajectoryData node.
+
+        Parameters
+        ----------
+        trajectory: TrajectoryData
+            The AiiDA TrajectoryData node containing the structure series to visualise.
+        """
+        symbols = trajectory.symbols
+        positions = trajectory.get_positions()
+        nsteps = trajectory.numsteps
+        atoms = []
+        for i in range(nsteps):
+            step = Atoms(symbols=symbols, positions=positions[i])
+            atoms.append(step)
+        self.assign_structure_from_ase(atoms)
         return
