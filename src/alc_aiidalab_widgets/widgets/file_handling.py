@@ -65,7 +65,6 @@ class FileUploadWidget(HBox, tl.HasTraits):
                 self.file = self.get_aiida_file_object()
         else:
             self.file_handle.value = ""
-        print(self.file_dict)
         return
 
     def get_file_contents(self) -> BytesIO | None:
