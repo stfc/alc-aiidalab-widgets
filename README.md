@@ -5,9 +5,9 @@
 
 [![Pipeline Status](https://github.com/stfc/alc-aiidalab-widgets/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/stfc/alc-aiidalab-widgets/actions)
 [![Docs status](https://github.com/stfc/alc-aiidalab-widgets/actions/workflows/docs.yml/badge.svg?branch=main)](https://stfc.github.io/alc-aiidalab-widgets/)
-<!-- [![Coverage Status]( https://coveralls.io/repos/github/stfc/alc-aiidalab-widgets/badge.svg?branch=main)](https://coveralls.io/github/stfc/alc-aiidalab-widgets?branch=main) -->
+[![Coverage Status]( https://coveralls.io/repos/github/stfc/alc-aiidalab-widgets/badge.svg?branch=main)](https://coveralls.io/github/stfc/alc-aiidalab-widgets?branch=main)
 
-<!-- [![DOI](https://zenodo.org/badge/1094975386.svg)](https://doi.org/10.5281/zenodo.19188755) -->
+[![DOI](https://zenodo.org/badge/1246461744.svg)](https://doi.org/10.5281/zenodo.21223179)
 
 This is a collection of commonly used widgets used across AiiDAlab plugins developed by
 the Ada Lovelace Centre (STFC). It provides re-usable components and consistent styling
