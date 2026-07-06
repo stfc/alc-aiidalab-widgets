@@ -87,7 +87,7 @@ class GenericArrayDataTableWidget(VBox):
         if len(values.shape) > 2:
             self.children = [
                 self.array_selector,
-                HTML("<p>To many dimension to create 2D table from array.</p>"),
+                HTML("<p>To many dimensions to create 2D table from array.</p>"),
             ]
             return
         if len(values.shape) == 1:
@@ -95,9 +95,6 @@ class GenericArrayDataTableWidget(VBox):
             ncols = 1
         else:
             ncols, nrows = values.shape  # type: ignore
-        values = values.reshape(1, -1)
-
-        # Unique styling prefix to prevent CSS bleeding into other Jupyter elements
 
         # Build Table Header (Column Indices)
         html = "<table style='width:100%; border: 1px solid #ddd; text-align: left; "
@@ -118,11 +115,19 @@ class GenericArrayDataTableWidget(VBox):
         for r in range(nrows):
             html += "<tr>"
             html += f'<th class="row-idx">{r}</th>'
-            for c in range(ncols):
-                val = values[c, r]
-                # Format floats to 6 decimals, leave ints/strings as they are
+            if ncols > 1:
+                for c in range(ncols):
+                    formatted_val = (
+                        f"{values[c, r]}"
+                        if isinstance(values[c, r], float | npfloat)
+                        else str(values[c, r])
+                    )
+                    html += f"<td>{formatted_val}</td>"
+            else:
                 formatted_val = (
-                    f"{val:.6f}" if isinstance(val, float | npfloat) else str(val)
+                    f"{values[r]:.6f}"
+                    if isinstance(values[r], float | npfloat)
+                    else str(values[r])
                 )
                 html += f"<td>{formatted_val}</td>"
             html += "</tr>"
