@@ -122,13 +122,13 @@ class AiiDADatabaseQueryWidget(ipw.VBox, HasTraits):
         if self.mode.value == "uploaded":
             qbuild2 = (
                 QueryBuilder()
-                .append(self.query_type, project=["id"], tag="structures")
-                .append(Node, with_outgoing="structures")
+                .append(self.query_type, project=["id"], tag="search_results")
+                .append(Node, with_outgoing="search_results")
             )
             processed_nodes = [n[0] for n in qbuild2.all()]
             if processed_nodes:
                 filters["id"] = {"!in": processed_nodes}
-            qbuild.append(self.query_type, filters=filters)
+            qbuild.append(self.query_type, filters=filters, tag="search_results")
 
         elif self.mode.value == "calculated":
             if self.drop_down.value == "All":
@@ -143,6 +143,7 @@ class AiiDADatabaseQueryWidget(ipw.VBox, HasTraits):
                 self.query_type,
                 with_incoming="calcjobworkchain",
                 filters=filters,
+                tag="search_results",
             )
 
         elif self.mode.value == "edited":
@@ -151,12 +152,13 @@ class AiiDADatabaseQueryWidget(ipw.VBox, HasTraits):
                 self.query_type,
                 with_incoming=CalcFunctionNode,
                 filters=filters,
+                tag="search_results",
             )
 
         elif self.mode.value == "all":
-            qbuild.append(self.query_type, filters=filters)
+            qbuild.append(self.query_type, filters=filters, tag="search_results")
 
-        qbuild.order_by({self.query_type: {"ctime": "desc"}})
+        qbuild.order_by({"search_results": {"ctime": "desc"}})
         matches = {n[0] for n in qbuild.iterall()}
         matches = sorted(matches, reverse=True, key=lambda n: n.ctime)
 
