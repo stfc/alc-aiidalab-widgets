@@ -23,7 +23,8 @@ class AiiDADatabaseQueryWidget(ipw.VBox, HasTraits):
 
         Creates a widgets for searching specific nodes within the AiiDA database,
         based on an input query list of node types. It also provides further options
-        for tailoring the search.
+        for tailoring the search. This is an adapted version of the AiiDADatabaseWidget
+        from the aiidalab-widgets-base package.
 
         Parameters
         ----------
