@@ -4,6 +4,7 @@ import numpy
 from aiida.orm import ArrayData
 from ipywidgets import HTML, Dropdown
 
+from alc_aiidalab_widgets.widgets.plots import PlotWidget
 from alc_aiidalab_widgets.widgets.tables import (
     GenericArrayDataTableWidget,
     XYZArrayDataTableWidget,
@@ -63,3 +64,39 @@ def test_generic_arraydata_table():
 
     widget.array_selector.index = 3
     assert "To many dimensions" in widget.children[1].value
+
+
+def test_generic_arraydata_plot_button():
+    """The plot button replaces the table with an interactive PlotWidget."""
+    array = ArrayData()
+    array.set_array("Energy_series", numpy.array([0.0, 1.0, 4.0, 9.0]))
+    array.set_array("Other", numpy.array([5.0, 6.0, 7.0]))
+    widget = GenericArrayDataTableWidget(array)
+
+    # Before clicking, the plot button is present.
+    assert widget.show_plt_btn in widget.children
+
+    # Simulate a user clicking the button (triggers the on_click callback).
+    widget.show_plt_btn.click()
+
+    # The table is now replaced by a PlotWidget for the selected array.
+    plot = widget.children[-1]
+    assert isinstance(plot, PlotWidget)
+    assert numpy.array_equal(plot.figure.data[0].y, array.get_array("Energy_series"))
+    # The y label is derived from the (prettified) array name.
+    assert plot.figure.layout.yaxis.title.text == "Energy series"
+
+
+def test_plot_button_uses_selected_array():
+    """Plotting reflects the currently selected array."""
+    array = ArrayData()
+    array.set_array("Array_1", numpy.array([0.0, 1.0, 2.0]))
+    array.set_array("Array_2", numpy.array([9.0, 8.0, 7.0]))
+    widget = GenericArrayDataTableWidget(array)
+
+    widget.array_selector.index = 1
+    widget.show_plt_btn.click()
+
+    plot = widget.children[-1]
+    assert isinstance(plot, PlotWidget)
+    assert numpy.array_equal(plot.figure.data[0].y, array.get_array("Array_2"))

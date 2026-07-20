@@ -1,8 +1,10 @@
 """Widgets used for displaying tabular information."""
 
 from aiida.orm import ArrayData
-from ipywidgets import HTML, Dropdown, VBox
+from ipywidgets import HTML, Button, Dropdown, VBox
 from numpy import floating as npfloat
+
+from alc_aiidalab_widgets.widgets.plots import PlotWidget
 
 
 class XYZArrayDataTableWidget(VBox):
@@ -74,6 +76,14 @@ class GenericArrayDataTableWidget(VBox):
             layout={"width": "50%"},
             **kwargs,
         )
+        self.show_plt_btn = Button(
+            description="Plot Array",
+            disabled=False,
+            button_style="primary",
+            tooltip="Plot the current data series",
+            icon="chart-line",
+        )
+        self.show_plt_btn.on_click(self._plot_data)
         self._render_array({"new": self.array_selector.index, "old": -1})
         self.array_selector.observe(self._render_array, "index")
         return
@@ -133,5 +143,22 @@ class GenericArrayDataTableWidget(VBox):
             html += "</tr>"
 
         html += "</tbody></table></div>"
-        self.children = [self.array_selector, HTML(html)]
+        self.table = HTML(html)
+        self.children = [self.array_selector, self.table, self.show_plt_btn]
+        return
+
+    def _plot_data(self, _=None) -> None:
+        """Plot the currently selected array data."""
+        data_values = self.array.get_array(
+            self.array.get_arraynames()[self.array_selector.index]  # type: ignore
+        )
+        data_label = (
+            self.array.get_arraynames()[self.array_selector.index]  # type: ignore
+            .replace("_", " ")
+            .capitalize()
+        )
+
+        plot_widget = PlotWidget(data_series=data_values, y_label=data_label)
+
+        self.children = [self.array_selector, self.table, plot_widget]
         return
