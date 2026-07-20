@@ -28,6 +28,7 @@ dependencies = [
     "traitlets",
     "aiida-core>=2.6",
     "weas-widget",
+    "plotly",
 ]
 
 [project.urls]
