@@ -1,6 +1,6 @@
 """Unit tests for the database module."""
 
-from aiida.orm import SinglefileData
+from aiida.orm import SinglefileData, StructureData
 from traitlets.traitlets import TraitError
 
 from alc_aiidalab_widgets.widgets.database import AiiDADatabaseQueryWidget
@@ -12,11 +12,7 @@ def test_database_query_default():
         "This is a test text file...", "test_file.txt"
     )
     test_file.store()
-    widget = AiiDADatabaseQueryWidget(
-        query=[
-            SinglefileData,
-        ]
-    )
+    widget = AiiDADatabaseQueryWidget(query=[SinglefileData, StructureData])
     assert len(widget.children) == 3
     assert widget.data_object is None
 
@@ -58,3 +54,16 @@ def test_database_query_default():
 
     widget.disable(True)
     assert widget.results.disabled
+
+    # Apply node type filter
+    widget.drop_down.value = StructureData
+    # Check that search has been re-triggered
+    assert widget.data_object is None
+    assert widget.results.index == 0
+    # Search results should be empty
+    try:
+        widget.results.index = 1
+    except TraitError:
+        pass
+    else:
+        raise AssertionError("Results should be empty.")
