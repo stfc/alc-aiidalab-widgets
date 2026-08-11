@@ -85,6 +85,40 @@ class StructureViewWidget(VBox):
         ]
         return
 
+    def to_ase(self) -> Atoms | list[Atoms] | None:
+        """Return the currently displayed structure as ASE Atoms.
+
+        The returned object reflects any edits made interactively in the viewer,
+        not just the structure originally loaded. A single structure is returned
+        as an ``Atoms`` object and a trajectory as a ``list[Atoms]``.
+
+        Returns
+        -------
+        Atoms | list[Atoms] | None
+            The displayed structure, or None if no structure is loaded. Note the
+            viewer must have been displayed for the returned data to be current.
+        """
+        if self.viewer is None:
+            return None
+        return self.viewer.to_ase()
+
+    def to_aiida(self) -> StructureData | TrajectoryData | None:
+        """Return the currently displayed structure as an AiiDA node.
+
+        The returned node reflects any edits made interactively in the viewer,
+        not just the structure originally loaded. A single structure is returned
+        as a ``StructureData`` node and a trajectory as a ``TrajectoryData`` node.
+
+        Returns
+        -------
+        StructureData | TrajectoryData | None
+            The displayed structure, or None if no structure is loaded. Note the
+            viewer must have been displayed for the returned node to be current.
+        """
+        if self.viewer is None:
+            return None
+        return self.viewer.to_aiida()
+
     def assign_structure_from_structuredata(self, structure: StructureData) -> None:
         """Visualise the given AiiDA StructureData object.
 
