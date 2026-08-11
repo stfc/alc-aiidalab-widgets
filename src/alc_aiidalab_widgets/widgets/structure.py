@@ -13,6 +13,10 @@ from weas_widget import WeasWidget
 class StructureViewWidget(VBox):
     """Visualise atom structure using weas_widget."""
 
+    # Configuration for the WeasWidget GUI. The import button is disabled as
+    # loading structures is typically handled elsewhere.
+    _GUI_CONFIG = {"buttons": {"import": False}}
+
     def __init__(self, node: Node | None = None, **kwargs):
         """StructureViewWidget constructor."""
         super().__init__(**kwargs)
@@ -74,7 +78,7 @@ class StructureViewWidget(VBox):
         structure: Atoms | list[Atoms]
             The ASE atoms structure(s) object.
         """
-        self.viewer = WeasWidget()
+        self.viewer = WeasWidget(guiConfig=self._GUI_CONFIG)
         self.viewer.from_ase(structure)
         self.children = [
             self.viewer,
