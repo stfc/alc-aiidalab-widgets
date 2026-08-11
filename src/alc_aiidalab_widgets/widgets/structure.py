@@ -53,18 +53,17 @@ class StructureViewWidget(VBox):
             tmpf.write(content)
             tmpf.flush()
             try:
-                structure = ase_io.read(tmpf.name, index=":", format=format)[0]
+                images = ase_io.read(tmpf.name, index=":", format=format)
             except (KeyError, ase_io.formats.UnknownFileTypeError):
                 self.message = HTML("<p>Could not visualise structure...</p>")
                 self.children = [
                     self.message,
                 ]
             else:
-                self.viewer = WeasWidget()
-                self.viewer.from_ase(structure)
-                self.children = [
-                    self.viewer,
-                ]
+                # Unwrap single-frame files so they aren't shown with a
+                # redundant trajectory slider.
+                structure = images[0] if len(images) == 1 else images
+                self.assign_structure_from_ase(structure)
         return
 
     def assign_structure_from_ase(self, structure: Atoms | list[Atoms]) -> None:
@@ -90,7 +89,7 @@ class StructureViewWidget(VBox):
         structure: StructureData
             The AiiDA StructureData object.
         """
-        self.assign_structure_from_ase(structure._get_object_ase())
+        self.assign_structure_from_ase(structure.get_ase())
         return
 
     def assign_structure_from_trajectorydata(self, trajectory: TrajectoryData) -> None:
@@ -102,12 +101,9 @@ class StructureViewWidget(VBox):
         trajectory: TrajectoryData
             The AiiDA TrajectoryData node containing the structure series to visualise.
         """
-        symbols = trajectory.symbols
-        positions = trajectory.get_positions()
-        nsteps = trajectory.numsteps
-        atoms = []
-        for i in range(nsteps):
-            step = Atoms(symbols=symbols, positions=positions[i])
-            atoms.append(step)
+        atoms = [
+            trajectory.get_step_structure(i).get_ase()
+            for i in range(trajectory.numsteps)
+        ]
         self.assign_structure_from_ase(atoms)
         return
