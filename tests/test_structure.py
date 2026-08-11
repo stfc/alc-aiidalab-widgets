@@ -3,7 +3,9 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+import numpy as np
 from aiida.orm import SinglefileData, StructureData, TrajectoryData
+from ase import Atoms
 from ipywidgets import HTML
 from weas_widget import WeasWidget
 
@@ -101,3 +103,62 @@ def test_invalid_file_type():
     assert len(widget.children) == 1
     assert isinstance(widget.children[0], HTML)
     assert "Could not visualise structure" in widget.children[0].value
+
+
+def test_edited_flag_clean_after_programmatic_load():
+    """The edit flag stays False when structures are assigned programmatically."""
+    widget = StructureViewWidget()
+    assert widget.edited is False
+    widget.assign_structure_from_ase(
+        Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]])
+    )
+    assert widget.edited is False
+    # A subsequent programmatic load also leaves the structure unedited.
+    widget.assign_structure_from_ase(
+        Atoms("CO2", positions=[[0, 0, 0], [0, 0, 1.2], [0, 0, -1.2]])
+    )
+    assert widget.edited is False
+
+
+def test_edited_flag_set_on_interactive_edit():
+    """An interactive geometry edit sets the edit flag, which the parent can reset."""
+    widget = StructureViewWidget()
+    widget.assign_structure_from_ase(
+        Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]])
+    )
+    assert widget.edited is False
+    # Simulate an interactive edit: the frontend updates the atoms trait
+    # asynchronously, i.e. outside the programmatic loading guard.
+    edited_atoms = dict(
+        widget.viewer.avr.atoms,
+        positions=[[0, 0, 0.5], [0, 0, 1], [0, 1, 0]],
+    )
+    widget.viewer._widget.set_trait("atoms", edited_atoms)
+    assert widget.edited is True
+    # The parent is responsible for resetting the flag once handled.
+    widget.edited = False
+    assert widget.edited is False
+
+
+def test_to_ase_and_to_aiida_without_structure():
+    """The structure extractors return None when nothing is loaded."""
+    widget = StructureViewWidget()
+    assert widget.to_ase() is None
+    assert widget.to_aiida() is None
+
+
+def test_to_aiida_returns_structuredata():
+    """to_aiida returns a valid StructureData node matching the displayed atoms."""
+    positions = [[0, 0, 0], [0, 0, 1], [0, 1, 0]]
+    widget = StructureViewWidget()
+    widget.assign_structure_from_ase(Atoms("H2O", positions=positions))
+    node = widget.to_aiida()
+    assert isinstance(node, StructureData)
+    # The node is valid and can be persisted to the AiiDA provenance graph.
+    node.store()
+    assert node.is_stored
+    assert node.get_formula() == "H2O"
+    # The atoms it holds match the structure that was displayed.
+    structure_ase = node.get_ase()
+    assert structure_ase.get_chemical_symbols() == ["H", "H", "O"]
+    assert np.allclose(structure_ase.get_positions(), positions)
