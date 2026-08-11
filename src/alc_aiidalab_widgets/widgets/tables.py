@@ -82,6 +82,7 @@ class GenericArrayDataTableWidget(VBox):
             button_style="primary",
             tooltip="Plot the current data series",
             icon="chart-line",
+            layout={"align_self": "flex-end"},
         )
         self.show_plt_btn.on_click(self._plot_data)
         self._render_array({"new": self.array_selector.index, "old": -1})
@@ -106,19 +107,23 @@ class GenericArrayDataTableWidget(VBox):
         else:
             ncols, nrows = values.shape  # type: ignore
 
+        th_style = "position: sticky; top: 0; background-color: #2196F3; color: white;"
+
         # Build Table Header (Column Indices)
-        html = "<table style='width:100%; border: 1px solid #ddd; text-align: left; "
+        html = "<div style='max-height: 22em; overflow-y: auto; "
+        html += "border: 1px solid #ddd;'>"
+        html += "<table style='width:100%; text-align: left; "
         html += "border-collapse: collapse;'>"
-        html += "<tr style='background-color: #2196F3; color: white;'>"
-        html += "<th>Index</th>"
+        html += "<thead><tr>"
+        html += f"<th style='{th_style}'>Index</th>"
         if ncols > 1:
             for c in range(ncols):
-                html += f"<th>{c}</th>"
+                html += f"<th style='{th_style}'>{c}</th>"
         else:
             col_header = (
                 self.array.get_arraynames()[index].replace("_", " ").capitalize()
             )
-            html += f"<th>{col_header}</th>"
+            html += f"<th style='{th_style}'>{col_header}</th>"
         html += "</tr></thead><tbody>"
 
         # Build Table Body (Row Index + Cell Data)
@@ -144,7 +149,7 @@ class GenericArrayDataTableWidget(VBox):
 
         html += "</tbody></table></div>"
         self.table = HTML(html)
-        self.children = [self.array_selector, self.table, self.show_plt_btn]
+        self.children = [self.array_selector, self.show_plt_btn, self.table]
         return
 
     def _plot_data(self, _=None) -> None:

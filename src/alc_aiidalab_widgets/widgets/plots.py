@@ -91,8 +91,8 @@ class PlotWidget(VBox):
             for series, label in zip(self.data_series, self.series_labels, strict=True):
                 self.figure.add_trace(
                     go.Scatter(
-                        x=self._series_x(series),
-                        y=series,
+                        x=self._series_x(series).tolist(),
+                        y=series.tolist(),
                         mode="lines+markers",
                         name=label,
                     )
