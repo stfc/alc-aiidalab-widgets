@@ -3,6 +3,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+import traitlets
 from aiida.orm import Node, SinglefileData, StructureData, TrajectoryData
 from ase import Atoms
 from ase import io as ase_io
@@ -13,6 +14,10 @@ from weas_widget import WeasWidget
 class StructureViewWidget(VBox):
     """Visualise atom structure using weas_widget."""
 
+    #: True once the user changes the geometry interactively in the viewer. Reset
+    #: to False whenever a structure is (re)assigned programmatically.
+    edited = traitlets.Bool(False)
+
     # Configuration for the WeasWidget GUI. The import button is disabled as
     # loading structures is typically handled elsewhere.
     _GUI_CONFIG = {"buttons": {"import": False}}
@@ -22,6 +27,10 @@ class StructureViewWidget(VBox):
         super().__init__(**kwargs)
         self.message = HTML("<p>No Structure Currently Loaded</p>")
         self.viewer = None
+        # Guard used to distinguish programmatic structure loads (which set the
+        # viewer's atoms trait synchronously) from interactive edits (which
+        # arrive asynchronously over the comm) so only the latter set `edited`.
+        self._loading = False
         self.children = [
             self.message,
         ]
@@ -73,16 +82,42 @@ class StructureViewWidget(VBox):
     def assign_structure_from_ase(self, structure: Atoms | list[Atoms]) -> None:
         """Visualise the given ASE structure.
 
+        The viewer is created once and reused for subsequent structures; the
+        displayed geometry is updated in place rather than rebuilding the widget,
+        preserving view state and observers across loads.
+
         Parameters
         ----------
         structure: Atoms | list[Atoms]
             The ASE atoms structure(s) object.
         """
-        self.viewer = WeasWidget(guiConfig=self._GUI_CONFIG)
-        self.viewer.from_ase(structure)
+        self._ensure_viewer()
+        # Suppress the edit flag while loading: this sets the viewer's atoms
+        # trait synchronously, which would otherwise be seen as an interactive
+        # edit by the observer.
+        self._loading = True
+        try:
+            self.viewer.from_ase(structure)
+        finally:
+            self._loading = False
+        # A freshly loaded structure is considered unedited.
+        self.edited = False
         self.children = [
             self.viewer,
         ]
+        return
+
+    def _ensure_viewer(self) -> None:
+        """Create the WeasWidget viewer on first use and start observing edits."""
+        if self.viewer is None:
+            self.viewer = WeasWidget(guiConfig=self._GUI_CONFIG)
+            self.viewer._widget.observe(self._on_atoms_changed, names="atoms")
+        return
+
+    def _on_atoms_changed(self, change: dict) -> None:
+        """Flag interactive geometry edits made by the user in the viewer."""
+        if not self._loading:
+            self.edited = True
         return
 
     def to_ase(self) -> Atoms | list[Atoms] | None:
