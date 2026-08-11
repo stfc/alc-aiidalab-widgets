@@ -32,7 +32,9 @@ class StructureViewWidget(VBox):
                 "<p>AiiDA Node type not supported by the structure viewer."
             )
 
-    def assign_structure_from_file(self, fname: str, content: bytes) -> None:
+    def assign_structure_from_file(
+        self, fname: str, content: bytes, format: str | None = None
+    ) -> None:
         """Visualise the given structure from a file.
 
         Parameters
@@ -41,20 +43,22 @@ class StructureViewWidget(VBox):
             The structure file path.
         content: bytes
             The content of the file.
+        format: str | None
+            An optional format specifier compatible with ASE. By default it is set
+            to None which results in ASE auto-detecting the file format from the
+            filename/extension.
         """
         suffix = "".join(Path(fname).suffixes)
         with NamedTemporaryFile(suffix=suffix) as tmpf:
             tmpf.write(content)
             tmpf.flush()
             try:
-                structure = ase_io.read(tmpf.name, index=":")[0]
+                structure = ase_io.read(tmpf.name, index=":", format=format)[0]
             except (KeyError, ase_io.formats.UnknownFileTypeError):
                 self.message = HTML("<p>Could not visualise structure...</p>")
                 self.children = [
                     self.message,
                 ]
-            except Exception as e:
-                raise e
             else:
                 self.viewer = WeasWidget()
                 self.viewer.from_ase(structure)
