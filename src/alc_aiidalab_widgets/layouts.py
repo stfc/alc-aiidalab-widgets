@@ -1,4 +1,5 @@
 """Basic step layout."""
+from aiidalab_widgets_base import WizardAppWidgetStep
 
 from collections.abc import Collection, Iterable
 from typing import Any
@@ -106,3 +107,35 @@ class ParameterStep(Step):
             Dictionary of current values.
         """
         return self.param_block.get(all=all)
+
+
+class WizardStep(Step, WizardAppWidgetStep):
+    """Combined wizard step and step for convenience."""
+    def __init__(self, *args, **kwargs):
+        self.state = self.State.INIT
+
+        super().__init__(*args, **kwargs)
+        self.submit_btn.disabled = True
+        self.ready()
+
+    def ready(self):
+        self.state = self.State.READY
+
+    def fail(self, message: str = ""):
+        self.submit_btn.disabled = True
+        if message:
+            self.status.failure(message)
+        self.state = self.State.FAIL
+
+    def ok(self, message: str = ""):
+        self.submit_btn.disabled = False
+        if message:
+            self.status.success(message)
+        self.state = self.State.READY
+
+    def running(self):
+        self.state = self.State.ACTIVE
+
+    def submit(self, b):
+        super().submit(b)
+        self.state = self.State.SUCCESS
