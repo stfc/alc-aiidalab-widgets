@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import ipywidgets as ipw
 
+from alc_aiidalab_widgets.types import ValueWidget
 from alc_aiidalab_widgets.widgets.download import Download
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ class ParametersBlock(ipw.GridspecLayout):
     def __init__(
         self,
         name: str,
-        widget_ref: dict[str, ipw.ValueWidget],
+        widget_ref: dict[str, ValueWidget],
         default_args: dict[str, dict[str, Any]],
         **kwargs,
     ):
@@ -61,7 +62,9 @@ class ParametersBlock(ipw.GridspecLayout):
         )
         self.load_button.observe(self._load, names="value")
 
-        self.defaults = {key: self.get(all=True) | val for key, val in default_args.items()}
+        self.defaults = {
+            key: self.get(all=True) | val for key, val in default_args.items()
+        }
         self.defaults_box = ipw.Dropdown(
             options=default_args.items(),
             value=next(iter(default_args.values()), {}),
@@ -79,7 +82,7 @@ class ParametersBlock(ipw.GridspecLayout):
         self.set(self.defaults_box.value)
 
     def get(
-        self, widgets: dict[str, ipw.ValueWidget] | None = None, *, all: bool = False
+        self, widgets: dict[str, ValueWidget] | None = None, *, all: bool = False
     ) -> dict[str, Any]:
         """Get parameters as dictionary.
 
@@ -106,7 +109,7 @@ class ParametersBlock(ipw.GridspecLayout):
             )
         }
 
-    def get_json(self, widgets: dict[str, ipw.ValueWidget] | None = None) -> str:
+    def get_json(self, widgets: dict[str, ValueWidget] | None = None) -> str:
         """Get parameters as JSON string.
 
         Parameters
@@ -122,7 +125,7 @@ class ParametersBlock(ipw.GridspecLayout):
         return json.dumps(self.get(widgets, all=True))
 
     def set(
-        self, values: dict[str, Any], widgets: dict[str, ipw.ValueWidget] | None = None
+        self, values: dict[str, Any], widgets: dict[str, ValueWidget] | None = None
     ) -> None:
         """Set parameters from dictionary.
 

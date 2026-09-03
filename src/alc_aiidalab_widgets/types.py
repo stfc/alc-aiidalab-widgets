@@ -3,12 +3,19 @@
 from datetime import datetime
 from typing import Generic, Protocol, TypeVar
 
-from traitlets import HasTraits
+from traitlets import HasTraits, TraitType
 from typing_extensions import NotRequired, TypedDict
 
 from alc_aiidalab_widgets.widgets.status import Status
 
 T = TypeVar("T")
+
+
+
+class ValueWidget(Protocol):
+    """Widget that can be used for the input of an interactive function."""
+
+    value: TraitType
 
 
 class CallbackDict(TypedDict, Generic[T]):

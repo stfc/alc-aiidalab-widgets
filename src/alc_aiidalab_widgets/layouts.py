@@ -1,13 +1,19 @@
 """Basic step layout."""
-from aiidalab_widgets_base import WizardAppWidgetStep
 
 from collections.abc import Collection, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import ipywidgets as ipw
+from aiidalab_widgets_base import WizardAppWidgetStep
 
+from alc_aiidalab_widgets.types import ValueWidget
 from alc_aiidalab_widgets.widgets.parameters import ParametersBlock
 from alc_aiidalab_widgets.widgets.status import Status
+
+if TYPE_CHECKING:
+    from ty_extensions import Intersection
+
+    WidgetType = Intersection[ValueWidget, ipw.Widget]
 
 
 class Step(ipw.AppLayout):
@@ -67,7 +73,7 @@ class ParameterStep(Step):
         default_args: dict[str, dict[str, Any]] | None = None,
         title: str,
         info: str,
-        widgets: dict[str, ipw.ValueWidget],
+        widgets: dict[str, WidgetType],
         structure: Iterable[ipw.Widget] | None = None,
         exclude: Collection[str] = (),
         **kwargs: Any,
@@ -111,6 +117,7 @@ class ParameterStep(Step):
 
 class WizardStep(Step, WizardAppWidgetStep):
     """Combined wizard step and step for convenience."""
+
     def __init__(self, *args, **kwargs):
         self.state = self.State.INIT
 
@@ -119,23 +126,31 @@ class WizardStep(Step, WizardAppWidgetStep):
         self.ready()
 
     def ready(self):
+        """Step is ready."""
         self.state = self.State.READY
 
     def fail(self, message: str = ""):
+        """Fail step."""
         self.submit_btn.disabled = True
         if message:
             self.status.failure(message)
         self.state = self.State.FAIL
 
     def ok(self, message: str = ""):
+        """Step is ready to run."""
         self.submit_btn.disabled = False
         if message:
             self.status.success(message)
         self.state = self.State.READY
 
     def running(self):
+        """Step is currently running something."""
         self.state = self.State.ACTIVE
 
     def submit(self, b):
+        """Step is completed."""
         super().submit(b)
-        self.state = self.State.SUCCESS
+        if self.status.status is Status._Stat.SUCCESS:
+            for widget in self.children:
+                widget.disabled = True
+            self.state = self.State.SUCCESS
