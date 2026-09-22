@@ -1,5 +1,7 @@
 """Basic step layout."""
 
+from __future__ import annotations
+
 from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING, Any
 

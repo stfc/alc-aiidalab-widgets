@@ -11,7 +11,6 @@ from alc_aiidalab_widgets.widgets.status import Status
 T = TypeVar("T")
 
 
-
 class ValueWidget(Protocol):
     """Widget that can be used for the input of an interactive function."""
 
