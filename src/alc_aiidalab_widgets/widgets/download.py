@@ -27,7 +27,8 @@ class Download(ipw.Button):
     -----
     Due to the nature of Jupyterlab, it is necessary
     to provide an output for the download to dump the
-    necessary download Javascript to.
+    necessary download Javascript to. This should
+    be its own output since it will subsequently be cleared.
     """
 
     def __init__(
@@ -67,3 +68,4 @@ class Download(ipw.Button):
          """)
 
         self.output.append_display_data(action)
+        self.output.clear_output()
