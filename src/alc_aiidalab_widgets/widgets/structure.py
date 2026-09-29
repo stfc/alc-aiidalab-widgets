@@ -174,9 +174,16 @@ class StructureViewWidget(VBox):
         trajectory: TrajectoryData
             The AiiDA TrajectoryData node containing the structure series to visualise.
         """
-        atoms = [
-            trajectory.get_step_structure(i).get_ase()
-            for i in range(trajectory.numsteps)
-        ]
+        # atoms = [
+        #     trajectory.get_step_structure(i).get_ase()
+        #     for i in range(trajectory.numsteps)
+        # ]
+        symbols = trajectory.symbols
+        positions = trajectory.get_positions()
+        nsteps = trajectory.numsteps
+        atoms = []
+        for i in range(nsteps):
+            step = Atoms(symbols=symbols, positions=positions[i])
+            atoms.append(step)
         self.assign_structure_from_ase(atoms)
         return
