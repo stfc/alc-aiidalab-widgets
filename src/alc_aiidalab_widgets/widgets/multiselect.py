@@ -35,13 +35,18 @@ class MultiSelect(ipw.HBox, HasTraits):
     def __init__(
         self,
         options: Iterable[str],
+        *,
         initial_value: Iterable[str] = frozenset(),
+        button_kwargs: dict = None,
         **kwargs,
     ) -> None:
         self.options = tuple(options)
 
+        if not button_kwargs:
+            button_kwargs = {}
+
         self.buttons = {
-            label: ipw.ToggleButton(value=False, description=label)
+            label: ipw.ToggleButton(value=False, description=label, **button_kwargs)
             for label in self.options
         }
         for button in self.buttons.values():

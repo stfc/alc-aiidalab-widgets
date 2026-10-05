@@ -29,6 +29,7 @@ dependencies = [
     "aiida-core>=2.6",
     "weas-widget",
     "plotly",
+    "numpy",
 ]
 
 [project.urls]
