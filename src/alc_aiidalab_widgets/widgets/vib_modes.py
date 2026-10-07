@@ -97,7 +97,7 @@ class _PhonopyDict(TypedDict, total=False):
 class VibrationalModesViewWidget(ipw.VBox):
     """Custom widget to display vibrational modes."""
 
-    def __init__(self, node: BandsData, **kwargs) -> None:
+    def __init__(self, node: BandsData, debug=False, **kwargs) -> None:
         """VibrationalModesViewWidget Constructor.
 
         Parameters
@@ -105,8 +105,14 @@ class VibrationalModesViewWidget(ipw.VBox):
         array : ArrayData
             The AiiDA ArrayData object to display.
         """
+        self.debug = debug
+        self.debug_output = ipw.Output()
         self.figure = go.FigureWidget()
         super().__init__([self.figure], **kwargs)
+
+        if self.debug:
+            self.children = [self.figure, self.debug_output]
+
         self.bands = node
         self.plot()
 
@@ -134,30 +140,29 @@ class VibrationalModesViewWidget(ipw.VBox):
         for pos, _ in bpd["labels"]:
             self.figure.add_vline(pos)
 
+        labels = dict(self._compress_labels(bpd["labels"]))
         self.figure.update_layout(
-            title="Dispersion",
             template="plotly_white",
-            xaxis_title="K-Points",
-            yaxis_title="Dispersion",
+            yaxis_title="Dispersion (meV)",
             showlegend=False,
+            margin={"l": 20, "r": 20, "t": 20, "b": 10},
             xaxis={
                 "tickmode": "array",
-                "tickvals": [
-                    int(pos) if pos.is_integer() else pos for pos, _ in bpd["labels"]
-                ],
-                "ticktext": list(self._compress_labels(bpd["labels"])),
+                "tickvals": list(labels.keys()),
+                "ticktext": list(labels.values()),
             },
         )
 
-    @staticmethod
     def _compress_labels(
+        self,
         labels: Iterable[tuple[float, str]],
-    ) -> Generator[str]:
-        for _, grp in groupby(labels, lambda x: x[0]):
-            label = [lab for _, lab in grp]
+    ) -> Generator[tuple[float, str]]:
+        for key, grp in groupby(labels, lambda x: round(x[0], 3)):
+            label = dict.fromkeys((lab for _, lab in grp), None)
+
             if len(label) > 2:
                 raise ValueError("0 width position in labels.")
-            yield " | ".join(label)
+            yield key, " | ".join(label)
 
     @classmethod
     def from_phonopy_yaml(cls, node: SinglefileData, **kwargs) -> Self:
@@ -190,10 +195,11 @@ class VibrationalModesViewWidget(ipw.VBox):
         if not label:
             return label
         return (
-            label.replace(r"\\", "")
+            label.replace("\\", "")
             .replace("$", "")
             .replace("mathrm{", "")
             .replace("}", "")
+            .replace("Gamma", "Γ")
         )
 
     @staticmethod
