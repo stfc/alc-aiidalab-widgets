@@ -25,7 +25,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "aiidalab-widgets-base",
-    "ipywidgets",
+    "ipywidgets>=8.0",
     "traitlets",
     "aiida-core>=2.6",
     "weas-widget",
