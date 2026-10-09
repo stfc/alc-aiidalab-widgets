@@ -1,9 +1,11 @@
 """Vibrational modes viewer widget."""
 
+import bz2
+import gzip
+import lzma
 from collections.abc import Generator, Iterable, Sequence
 from functools import cached_property
 from itertools import groupby
-from lzma import LZMAFile
 from typing import TypedDict, cast
 
 import ipywidgets as ipw
@@ -13,6 +15,18 @@ import yaml
 from aiida.orm import BandsData, KpointsData, SinglefileData
 from numpy.typing import NDArray
 from typing_extensions import NotRequired, Self
+
+try:
+    from yaml import CSafeLoader as Loader
+except ImportError:
+    from yaml import SafeLoader as Loader
+
+COMPRESSORS = {
+    "xz": lzma.open,
+    "bz2": bz2.open,
+    "gz": gzip.open,
+}
+
 
 _PathDict = TypedDict(
     "_PathDict",
@@ -69,7 +83,6 @@ class _PhonopyDict(TypedDict, total=False):
     segment_nqpoint: list[int]
     phonon: list[_PhonopySegment]
     labels: NotRequired[Sequence[str]]
-    segment_nqpoint: NotRequired[Sequence[int]]
     reciprocal_lattice: NotRequired[
         tuple[
             tuple[float, float, float],
@@ -102,8 +115,8 @@ class VibrationalModesViewWidget(ipw.VBox):
 
         Parameters
         ----------
-        array : ArrayData
-            The AiiDA ArrayData object to display.
+        array : BandsData
+            The AiiDA BandsData object to display.
         """
         self.debug = debug
         self.debug_output = ipw.Output()
@@ -153,8 +166,8 @@ class VibrationalModesViewWidget(ipw.VBox):
             },
         )
 
+    @staticmethod
     def _compress_labels(
-        self,
         labels: Iterable[tuple[float, str]],
     ) -> Generator[tuple[float, str]]:
         for key, grp in groupby(labels, lambda x: round(x[0], 3)):
@@ -178,8 +191,20 @@ class VibrationalModesViewWidget(ipw.VBox):
         Self
             Constructed Bands view
         """
-        with node.open(None, "rb") as file, LZMAFile(file, "r") as decompress:
-            raw = cast("_PhonopyDict", yaml.safe_load(decompress))
+        ext = node.filename.rsplit(".", maxsplit=1)[-1]
+        match ext:
+            case "xz" | "gz" | "bz2":
+                with (
+                    node.open(None, "rb") as file,
+                    COMPRESSORS[ext](file, "r") as decompress,
+                ):
+                    raw = cast("_PhonopyDict", yaml.load(decompress, Loader=Loader))
+            case "yaml" | "yml":
+                with node.open(None, "rb") as file:
+                    raw = cast("_PhonopyDict", yaml.load(file, Loader=Loader))
+            case _:
+                raise OSError("Unrecognised file format ({ext}).")
+
         bands = cls._clean_phonopy_bs_yaml(raw)
         return cls(bands, **kwargs)
 
