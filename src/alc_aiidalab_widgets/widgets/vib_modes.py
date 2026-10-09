@@ -156,7 +156,7 @@ class VibrationalModesViewWidget(ipw.VBox):
         labels = dict(self._compress_labels(bpd["labels"]))
         self.figure.update_layout(
             template="plotly_white",
-            yaxis_title="Dispersion (meV)",
+            yaxis_title="Dispersion (THz)",
             showlegend=False,
             margin={"l": 20, "r": 20, "t": 20, "b": 10},
             xaxis={
