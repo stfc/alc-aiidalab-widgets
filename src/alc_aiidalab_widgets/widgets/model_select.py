@@ -8,7 +8,7 @@ from aiida.orm import Node, QueryBuilder, SinglefileData
 
 from alc_aiidalab_widgets.utils import tab_from_dict
 from alc_aiidalab_widgets.widgets import AiiDADatabaseQueryWidget, FileUploadWidget
-from alc_aiidalab_widgets.widgets.parameters import ParametersBlock
+from alc_aiidalab_widgets.widgets.parameters import ParamEntry, ParametersBlock
 
 NT = TypeVar("NT", bound=Node)
 
@@ -56,11 +56,8 @@ class ModelSelect(ipw.VBox, Generic[NT]):
             description="Arch:",
             layout=ipw.Layout(width="80%"),
         )
-        self.extra_kwargs = ipw.TagsInput(
-            tooltip="Calc kwargs provided as `key=value`", layout={"width": "60%"}
-        )
-        calc_kwargs = ipw.HBox(
-            [ipw.Label("Calc kwargs:", layout={"width": "20%"}), self.extra_kwargs]
+        self.extra_kwargs = ParamEntry(
+            # tooltip="Calc kwargs provided as `key=value`", layout={"width": "60%"}
         )
 
         # Remote Model
@@ -71,7 +68,7 @@ class ModelSelect(ipw.VBox, Generic[NT]):
             layout=ipw.Layout(width="80%"),
         )
         uri_vbox = ipw.VBox(
-            [self.model_from_uri, self.arch, calc_kwargs],
+            [self.model_from_uri, self.arch, self.extra_kwargs],
             layout={"width": "100%"},
         )
         parameters_block = ParametersBlock(
@@ -85,66 +82,66 @@ class ModelSelect(ipw.VBox, Generic[NT]):
                 "mace_mp_small": {
                     "model": "https://github.com/stfc/janus-core/raw/main/tests/models/mace_mp_small.model",
                     "arch": "mace_mp",
-                    "calc_kwargs": [
-                        "damping=bj",
-                        "dispersion_xc=pbe",
-                        "dispersion_cutoff=21",
-                    ],
+                    "calc_kwargs": {
+                        "damping": "bj",
+                        "dispersion_xc": "pbe",
+                        "dispersion_cutoff": 21,
+                    },
                 },
                 "mace_omol_xl": {
                     "model": "https://github.com/ACEsuit/mace-foundations/releases/download/mace_omol_0/MACE-omol-0-extra-large-1024.model",
                     "arch": "mace_omol",
-                    "calc_kwargs": ["default_dtype=float64"],
+                    "calc_kwargs": {"default_dtype": "float64"},
                 },
                 "mace_off_m": {
                     "model": "https://github.com/ACEsuit/mace-off/blob/main/mace_off24/MACE-OFF24_medium.model",
                     "arch": "mace_off",
-                    "calc_kwargs": ["default_dtype=float64"],
+                    "calc_kwargs": {"default_dtype": "float64"},
                 },
                 "mace_polar_m": {
                     "model": "https://github.com/ACEsuit/mace-foundations/releases/download/mace_polar_1/MACE-POLAR-1-M.model",
                     "arch": "mace_polar",
-                    "calc_kwargs": ["default_dtype=float64"],
+                    "calc_kwargs": {"default_dtype": "float64"},
                 },
                 "chgnet-0.3.0": {
                     "model": "https://github.com/CederGroupHub/chgnet/raw/refs/heads/main/chgnet/pretrained/0.3.0/chgnet_0.3.0_e29f68s314m37.pth.tar",
                     "arch": "chgnet",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
                 "sevennet-Jul2024": {
                     "model": "https://github.com/MDIL-SNU/SevenNet/raw/refs/heads/main/sevenn/pretrained_potentials/SevenNet_0__11Jul2024/checkpoint_sevennet_0.pth",
                     "arch": "sevennet",
-                    "calc_kwargs": ["file_type=checkpoint", "sevennet_config=None"],
+                    "calc_kwargs": {"file_type": "checkpoint", "sevennet_config": None},
                 },
                 "nequip-medium": {
                     "model": "https://zenodo.org/api/records/18775904/files/NequIP-OAM-M-0.1.nequip.zip/content",
                     "arch": "nequip",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
                 "DPA-3-3-1M": {
                     "model": "https://huggingface.co/deepmodelingcommunity/DPA-3.3-1M/resolve/main/DPA-3.3-1M.pt?download=true",
                     "arch": "deepmd",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
                 "orb3-direct-omol": {
                     "model": "https://orbitalmaterials-public-models.s3.us-west-1.amazonaws.com/forcefields/orb-v3-direct-omol-20250820.ckpt",
                     "arch": "orb",
-                    "calc_kwargs": ["atoms_adapter=None"],
+                    "calc_kwargs": {"atoms_adapter": None},
                 },
                 "mattersim-v1-1M": {
                     "model": "https://github.com/microsoft/mattersim/raw/refs/heads/main/pretrained_models/mattersim-v1.0.0-1M.pth",
                     "arch": "mattersim",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
                 "grace-2L-omat": {
                     "model": "https://huggingface.co/AMS-ICAMS-RUB/grace-foundation-models/resolve/main/models/GRACE-2L-OMAT-model.tar.gz?download=true",
                     "arch": "grace",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
                 "upet-mad-s-1.6": {
                     "model": "https://huggingface.co/lab-cosmo/upet/resolve/main/models/pet-mad-s-v1.6.0.ckpt?download=true",
                     "arch": "upet",
-                    "calc_kwargs": [],
+                    "calc_kwargs": {},
                 },
             },
         )
@@ -154,7 +151,7 @@ class ModelSelect(ipw.VBox, Generic[NT]):
         # Local Model
         self.model_from_local = FileUploadWidget()
         local_vbox = ipw.VBox(
-            [self.model_from_local, self.arch, calc_kwargs],
+            [self.model_from_local, self.arch, self.extra_kwargs],
             layout={"width": "100%"},
         )
         tabs["From Local File"] = local_vbox
@@ -178,7 +175,7 @@ class ModelSelect(ipw.VBox, Generic[NT]):
                 layout={"width": "100%"},
             )
             node_vbox = ipw.VBox(
-                [self.model_node_box, self.arch, calc_kwargs],
+                [self.model_node_box, self.arch, self.extra_kwargs],
                 layout={"width": "100%"},
             )
             tabs["AiiDA Database"] = node_vbox
@@ -203,11 +200,7 @@ class ModelSelect(ipw.VBox, Generic[NT]):
     @property
     def calc_kwargs(self) -> dict[str, str]:
         """Get calc kwargs as dict."""
-        return {
-            splt[0]: splt[1]
-            for val in self.extra_kwargs.value
-            if (splt := val.split("=", maxsplit=1))
-        }
+        return self.extra_kwargs.as_dict()
 
 
 try:
