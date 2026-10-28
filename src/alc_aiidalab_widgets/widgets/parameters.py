@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import ipywidgets as ipw
+from traitlets import Dict, HasTraits, Unicode
 
 from alc_aiidalab_widgets.types import ValueWidget
 from alc_aiidalab_widgets.widgets.download import Download
@@ -159,3 +162,83 @@ class ParametersBlock(ipw.GridspecLayout):
         params = json.loads(content)
 
         self.set(params)
+
+
+class ParamEntry(ipw.GridBox, HasTraits):
+    """Entry for arbitrary parameters in dict."""
+
+    value = Dict(key_Trait=Unicode())
+
+    def __init__(
+        self,
+        *,
+        allowed_keys: Iterable[str] | None = None,
+        type_map: dict[str, type] | None = None,
+        **kwargs,
+    ) -> None:
+        self.plist = ipw.Select(layout={"width": "60%"})
+        self.key = ipw.Text(layout={"width": "50%"})
+        self.val = ipw.Text(layout={"width": "50%"})
+        self.add_b = ipw.Button(
+            description="Add",
+            button_style="success",
+            icon="plus",
+            layout={"width": "50%"},
+        )
+        self.rem_b = ipw.Button(
+            description="Remove",
+            button_style="success",
+            icon="minus",
+            layout={"width": "50%"},
+        )
+
+        entry = ipw.HBox([self.key, self.val], layout={"width": "60%"})
+        buttons = ipw.HBox([self.add_b, self.rem_b], layout={"width": "60%"})
+
+        self.allowed_keys = set(allowed_keys) if allowed_keys is not None else None
+        self.type_map: Mapping[str, type] = defaultdict(lambda: str, type_map or {})
+
+        self.add_b.on_click(self.add)
+        self.rem_b.on_click(self.rem)
+        self.plist.observe(self.sel, "value")
+        self.observe(self.sync, "value")
+
+        super().__init__(
+            [self.plist, entry, buttons],
+            **kwargs,
+        )
+
+    def sync(self, *_) -> None:
+        """Synchronise dict and display."""
+        self.plist.options = self.value.keys()
+
+    def add(self, _) -> None:
+        """Add key/val to params."""
+        key, val = self.key.value, self.val.value
+
+        if not key or self.allowed_keys is not None and key not in self.allowed_keys:
+            return
+
+        try:
+            self.value[key] = self.type_map[key](val)
+        except ValueError:
+            return
+        self.sync()
+
+    def rem(self, _) -> None:
+        """Remove key/val from params."""
+        key = self.plist.value
+        self.value.pop(key)
+        self.sync()
+
+    def sel(self, value: CallbackDict[str]) -> None:
+        """Synchronise key/val with selection."""
+        if (key := value.get("new")) is None:
+            return
+
+        self.key.value = key
+        self.val.value = str(self.value[key])
+
+    def as_dict(self) -> dict[str, Any]:
+        """Get params as dictionary."""
+        return self.value
