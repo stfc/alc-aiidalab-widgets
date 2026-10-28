@@ -1,5 +1,6 @@
 """Defines a widget for visualisation of chemical structures."""
 
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -17,6 +18,45 @@ _MAGNETIC_MOMENT_THRESHOLD = 1e-3
 # Default shaft/head radius (in the structure's length units) of the arrows
 # used to draw magnetic moment vectors
 _DEFAULT_ARROW_RADIUS = 0.1
+
+
+def _build_magnetic_vector_field(
+    positions: Sequence[Sequence[float]], moments: Sequence[Sequence[float]]
+) -> dict:
+    """Build a WeasWidget vector field settings dict from per-atom moments.
+
+    Parameters
+    ----------
+    positions: Sequence[Sequence[float]]
+        One cartesian position per atom.
+    moments: Sequence[Sequence[float]]
+        One cartesian magnetic moment vector per atom, matching `positions`.
+
+    Returns
+    -------
+    dict
+        A single-group vector field settings dict containing only the sites
+        whose moment magnitude exceeds `_MAGNETIC_MOMENT_THRESHOLD`, or an
+        empty dict if none do.
+    """
+    origins = []
+    vectors = []
+    for position, moment in zip(positions, moments, strict=True):
+        if any(abs(component) > _MAGNETIC_MOMENT_THRESHOLD for component in moment):
+            origins.append(list(position))
+            vectors.append(list(moment))
+    return (
+        {
+            "magnetic moment": {
+                "origins": origins,
+                "vectors": vectors,
+                "color": "orange",
+                "radius": _DEFAULT_ARROW_RADIUS,
+            }
+        }
+        if vectors
+        else {}
+    )
 
 
 def _parse_mcif(content: bytes) -> tuple[Atoms, dict]:
@@ -53,30 +93,15 @@ def _parse_mcif(content: bytes) -> tuple[Atoms, dict]:
     )[0]
     atoms = AseAtomsAdaptor.get_atoms(pmg_structure)
 
-    origins = []
-    vectors = []
+    positions = []
+    moments = []
     for site, position in zip(pmg_structure, atoms.get_positions(), strict=True):
         magmom = site.properties.get("magmom")
-        moment = magmom.moment if magmom is not None else None
-        if moment is not None and any(
-            abs(component) > _MAGNETIC_MOMENT_THRESHOLD for component in moment
-        ):
-            origins.append(list(position))
-            vectors.append(list(moment))
+        if magmom is not None:
+            positions.append(position)
+            moments.append(magmom.moment)
 
-    vector_field = (
-        {
-            "magnetic moment": {
-                "origins": origins,
-                "vectors": vectors,
-                "color": "orange",
-                "radius": _DEFAULT_ARROW_RADIUS,
-            }
-        }
-        if vectors
-        else {}
-    )
-    return atoms, vector_field
+    return atoms, _build_magnetic_vector_field(positions, moments)
 
 
 class StructureViewWidget(VBox):
@@ -189,7 +214,8 @@ class StructureViewWidget(VBox):
             An optional WeasWidget vector field settings dict describing
             per-site magnetic moments. When given, the moments are drawn as
             arrows and controls for their visibility/thickness are shown
-            alongside the viewer.
+            alongside the viewer. Equivalent to calling `set_vector_field`
+            after loading `structure`.
         """
         self._ensure_viewer()
         # Suppress the edit flag while loading: this sets the viewer's atoms
@@ -202,15 +228,89 @@ class StructureViewWidget(VBox):
             self._loading = False
         # A freshly loaded structure is considered unedited.
         self.edited = False
-        if magnetic_vectors:
-            self.viewer.avr.vf.settings = magnetic_vectors
+        self.set_vector_field(magnetic_vectors)
+        return
+
+    def set_vector_field(self, settings: dict | None) -> None:
+        """Set, update, or clear the viewer's per-atom vector field overlay.
+
+        Generic entry point for any vector field data (magnetic moments,
+        forces, etc.), not specific to magnetism; see `set_magnetic_vectors`
+        for a convenience wrapper that builds the settings dict for magnetic
+        moments from a plain per-atom vector list. Can be called at any time
+        after a structure has been assigned (not just at load time) to add,
+        replace, or remove the vector arrows in place, without reloading the
+        structure's geometry.
+
+        Parameters
+        ----------
+        settings: dict | None
+            A WeasWidget vector field settings dict, e.g. one or more named
+            groups each with `origins`, `vectors`, `color`, and optionally
+            `radius`/`factor` (see `viewer.avr.vf.settings`). None or an
+            empty dict removes the vector field and hides its controls.
+
+        Raises
+        ------
+        RuntimeError
+            If no structure has been assigned yet.
+        """
+        if self.viewer is None:
+            raise RuntimeError(
+                "Cannot set a vector field before a structure has been assigned."
+            )
+        if settings:
+            self.viewer.avr.vf.settings = settings
             self.viewer.avr.vf.show = True
             self._ensure_magnetic_controls()
             self._magnetic_toggle.value = True
             self._magnetic_thickness_slider.value = _DEFAULT_ARROW_RADIUS
             self.children = [self._magnetic_controls, self.viewer]
         else:
+            self.viewer.avr.vf.settings = {}
             self.children = [self.viewer]
+        return
+
+    def set_magnetic_vectors(self, vectors: Sequence[Sequence[float]] | None) -> None:
+        """Set, update, or clear the magnetic moment vector field.
+
+        Convenience wrapper around `set_vector_field` for the common case of
+        per-atom magnetic moments; pass a raw vector field settings dict to
+        `set_vector_field` directly for full control or other vector data.
+
+        Parameters
+        ----------
+        vectors: Sequence[Sequence[float]] | None
+            A sequence with one cartesian 3-vector per currently displayed
+            atom (in the same order), from which a single "magnetic moment"
+            vector field group is built automatically using the atoms'
+            current positions; sites with a near-zero moment are omitted.
+            None or an empty sequence removes the vector field.
+
+        Raises
+        ------
+        RuntimeError
+            If no structure has been assigned yet.
+        ValueError
+            If vectors are given while a trajectory (rather than a single
+            structure) is displayed.
+        """
+        if not vectors:
+            self.set_vector_field(None)
+            return
+        if self.viewer is None:
+            raise RuntimeError(
+                "Cannot set magnetic vectors before a structure has been assigned."
+            )
+        atoms = self.viewer.to_ase()
+        if isinstance(atoms, list):
+            raise ValueError(
+                "Cannot derive atom positions for a trajectory; use "
+                "set_vector_field with an explicit settings dict instead."
+            )
+        self.set_vector_field(
+            _build_magnetic_vector_field(atoms.get_positions(), vectors)
+        )
         return
 
     def _ensure_magnetic_controls(self) -> None:

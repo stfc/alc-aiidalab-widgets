@@ -166,6 +166,91 @@ def test_mcif_thickness_slider_controls_vector_field_radius():
     )
 
 
+def test_set_magnetic_vectors_from_plain_sequence():
+    """set_magnetic_vectors accepts one vector per atom and builds the group."""
+    widget = StructureViewWidget()
+    positions = [[0, 0, 0], [0, 0, 1], [0, 1, 0]]
+    widget.assign_structure_from_ase(Atoms("H2O", positions=positions))
+    assert len(widget.children) == 1
+
+    widget.set_magnetic_vectors([[0, 0, 2.0], [0, 0, 0], [0, 0, -2.0]])
+    assert len(widget.children) == 2
+    settings = widget.viewer.avr.vf.settings
+    assert settings["magnetic moment"]["origins"] == [[0, 0, 0], [0, 1, 0]]
+    assert settings["magnetic moment"]["vectors"] == [[0, 0, 2.0], [0, 0, -2.0]]
+    assert widget.viewer._widget.showVectorField is True
+
+
+def test_set_magnetic_vectors_clears_vector_field():
+    """Passing None removes an existing vector field and its controls."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert len(widget.children) == 2
+
+    widget.set_magnetic_vectors(None)
+    assert len(widget.children) == 1
+    assert widget.viewer.avr.vf.settings == {}
+
+
+def test_set_magnetic_vectors_without_structure_raises():
+    """set_magnetic_vectors requires a structure to already be assigned."""
+    widget = StructureViewWidget()
+    with pytest.raises(RuntimeError):
+        widget.set_magnetic_vectors([[0, 0, 1.0]])
+
+
+def test_set_magnetic_vectors_rejects_plain_sequence_for_trajectory():
+    """A plain vector sequence cannot be mapped onto a multi-frame trajectory."""
+    widget = StructureViewWidget()
+    widget.assign_structure_from_ase(
+        [
+            Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
+            Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
+        ]
+    )
+    with pytest.raises(ValueError, match="trajectory"):
+        widget.set_magnetic_vectors([[0, 0, 1.0], [0, 0, 0], [0, 0, 0]])
+
+
+def test_set_vector_field_from_dict():
+    """set_vector_field accepts a settings dict for non-magnetic data too."""
+    widget = StructureViewWidget()
+    positions = [[0, 0, 0], [0, 0, 1], [0, 1, 0]]
+    widget.assign_structure_from_ase(Atoms("H2O", positions=positions))
+
+    custom_field = {
+        "forces": {
+            "origins": [[0, 0, 0]],
+            "vectors": [[1.0, 0, 0]],
+            "color": "green",
+        }
+    }
+    widget.set_vector_field(custom_field)
+    assert len(widget.children) == 2
+    assert dict(widget.viewer.avr.vf.settings["forces"]) == custom_field["forces"]
+    assert widget.viewer._widget.showVectorField is True
+
+
+def test_set_vector_field_clears_vector_field():
+    """Passing None removes an existing vector field and its controls."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert len(widget.children) == 2
+
+    widget.set_vector_field(None)
+    assert len(widget.children) == 1
+    assert widget.viewer.avr.vf.settings == {}
+
+
+def test_set_vector_field_without_structure_raises():
+    """set_vector_field requires a structure to already be assigned."""
+    widget = StructureViewWidget()
+    with pytest.raises(RuntimeError):
+        widget.set_vector_field({"forces": {"origins": [], "vectors": []}})
+
+
 def test_mcif_missing_pymatgen_dependency(monkeypatch):
     """A helpful message is shown when pymatgen is not installed."""
     real_import = builtins.__import__
