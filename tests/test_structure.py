@@ -93,6 +93,58 @@ def test_structure_initialise_from_trajectorydata():
     assert structure_ase[0].get_atomic_numbers()[2] == 1
 
 
+def _generate_magnetic_structure_data():
+    """Build a small antiferromagnetic MagneticStructureData for testing."""
+    pytest.importorskip("aiida_wannier90_workflows")
+    from aiida_wannier90_workflows.data.structure import MagneticStructureData
+
+    structure = MagneticStructureData(
+        cell=[[4.8736, 0, 0], [0, 4.8736, 0], [0, 0, 3.3]]
+    )
+    structure.append_atom(
+        position=[0.0, 0.0, 0.0], symbols="Mn", name="Mn0", magmom=(0.0, 0.0, 4.6)
+    )
+    structure.append_atom(
+        position=[2.4368, 2.4368, 1.65],
+        symbols="Mn",
+        name="Mn1",
+        magmom=(0.0, 0.0, -4.6),
+    )
+    zero_magmom = (0.0, 0.0, 0.0)
+    structure.append_atom(position=[1.0, 1.0, 0.0], symbols="F", magmom=zero_magmom)
+    structure.append_atom(position=[1.0, 3.0, 1.65], symbols="F", magmom=zero_magmom)
+    return structure
+
+
+def test_structure_initialise_from_magnetic_structuredata():
+    """A MagneticStructureData node renders the structure and its moments."""
+    structure = _generate_magnetic_structure_data()
+    widget = StructureViewWidget(structure)
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 2
+    assert widget._magnetic_toggle.value is True
+
+    structure_ase = widget.viewer.to_ase()
+    assert structure_ase.get_chemical_symbols().count("Mn") == 2
+    assert structure_ase.get_chemical_symbols().count("F") == 2
+
+    settings = widget.viewer.avr.vf.settings
+    moments = settings["magnetic moment"]["vectors"]
+    assert sorted(moment[2] for moment in moments) == pytest.approx([-4.6, 4.6])
+    assert widget.viewer._widget.showVectorField is True
+
+
+def test_assign_structure_from_magnetic_structuredata():
+    """assign_structure_from_magnetic_structuredata can be called directly."""
+    structure = _generate_magnetic_structure_data()
+    widget = StructureViewWidget()
+    widget.assign_structure_from_magnetic_structuredata(structure)
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 2
+    settings = widget.viewer.avr.vf.settings
+    assert len(settings["magnetic moment"]["vectors"]) == 2
+
+
 def test_invalid_file_type():
     """Load an invalid filetype into a StructureViewWidget."""
     widget = StructureViewWidget()

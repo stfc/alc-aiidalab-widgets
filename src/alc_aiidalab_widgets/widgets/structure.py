@@ -104,6 +104,22 @@ def _parse_mcif(content: bytes) -> tuple[Atoms, dict]:
     return atoms, _build_magnetic_vector_field(positions, moments)
 
 
+def _is_magnetic_structure_data(node) -> bool:
+    """Return True if `node` is an AiiDA `MagneticStructureData` instance.
+
+    `MagneticStructureData` is defined in the optional, git-only
+    `aiida-wannier90-workflows` package (it is not published on PyPI, so it
+    cannot be added as a normal dependency). If that package is not
+    installed, no node can be an instance of it, so this simply returns
+    False rather than raising.
+    """
+    try:
+        from aiida_wannier90_workflows.data.structure import MagneticStructureData
+    except ImportError:
+        return False
+    return isinstance(node, MagneticStructureData)
+
+
 class StructureViewWidget(VBox):
     """Visualise atom structure using weas_widget."""
 
@@ -133,7 +149,11 @@ class StructureViewWidget(VBox):
         self.children = [
             self.message,
         ]
-        if isinstance(node, StructureData):
+        if _is_magnetic_structure_data(node):
+            # Checked before the generic StructureData case below, since
+            # MagneticStructureData is itself a StructureData subclass.
+            self.assign_structure_from_magnetic_structuredata(node)
+        elif isinstance(node, StructureData):
             self.assign_structure_from_structuredata(node)
         elif isinstance(node, SinglefileData):
             self.assign_structure_from_file(node.filename, node.content)
@@ -401,6 +421,29 @@ class StructureViewWidget(VBox):
             The AiiDA StructureData object.
         """
         self.assign_structure_from_ase(structure.get_ase())
+        return
+
+    def assign_structure_from_magnetic_structuredata(self, structure) -> None:
+        """Visualise the given AiiDA MagneticStructureData object.
+
+        Follows the same path as loading a .mcif file: the per-kind magnetic
+        moments are extracted and drawn as arrows alongside the structure.
+
+        Parameters
+        ----------
+        structure: MagneticStructureData
+            The AiiDA MagneticStructureData object (from the
+            `aiida-wannier90-workflows` package), carrying a magnetic moment
+            per kind.
+        """
+        kind_magmoms = {kind.name: kind.magmom for kind in structure.kinds}
+        moments = [
+            kind_magmoms.get(site.kind_name) or (0.0, 0.0, 0.0)
+            for site in structure.sites
+        ]
+        atoms = structure.get_ase()
+        magnetic_vectors = _build_magnetic_vector_field(atoms.get_positions(), moments)
+        self.assign_structure_from_ase(atoms, magnetic_vectors=magnetic_vectors)
         return
 
     def assign_structure_from_trajectorydata(self, trajectory: TrajectoryData) -> None:

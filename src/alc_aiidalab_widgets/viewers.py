@@ -19,6 +19,12 @@ ALC_AIIDA_VIEWER_MAPPING = {
     "data.core.singlefile.SinglefileData.": SinglefileDataViewer,
     "data.core.array.trajectory.TrajectoryData.": StructureViewWidget,
     "data.core.array.ArrayData.": GenericArrayDataTableWidget,
+    # MagneticStructureData from the optional aiida-wannier90-workflows
+    # package; visualised the same way, with magnetic moments drawn as
+    # arrows.
+    "data.wannier90_workflows.MagneticStructureData.MagneticStructureData.": (
+        StructureViewWidget
+    ),
     # Custom redirections
     "xyz_table": XYZArrayDataTableWidget,
 }
