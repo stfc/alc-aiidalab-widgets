@@ -1,9 +1,11 @@
 """Unit tests for the structure module."""
 
+import builtins
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import numpy as np
+import pytest
 from aiida.orm import SinglefileData, StructureData, TrajectoryData
 from ase import Atoms
 from ipywidgets import HTML
@@ -103,6 +105,84 @@ def test_invalid_file_type():
     assert len(widget.children) == 1
     assert isinstance(widget.children[0], HTML)
     assert "Could not visualise structure" in widget.children[0].value
+
+
+def test_structure_load_from_mcif_file():
+    """Loading a .mcif file renders the structure and the magnetic moments."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert isinstance(widget.viewer, WeasWidget)
+    # Controls (visibility toggle + thickness slider) are shown alongside the
+    # viewer for magnetic structures.
+    assert len(widget.children) == 2
+    assert widget.children[0] is widget._magnetic_controls
+    assert widget._magnetic_toggle in widget._magnetic_controls.children
+    assert widget._magnetic_thickness_slider in widget._magnetic_controls.children
+    assert widget._magnetic_toggle.value is True
+    assert widget._magnetic_thickness_slider.value == pytest.approx(0.1)
+
+    structure_ase = widget.viewer.to_ase()
+    assert structure_ase.get_chemical_symbols().count("Mn") == 2
+    assert structure_ase.get_chemical_symbols().count("F") == 4
+
+    settings = widget.viewer.avr.vf.settings
+    moments = settings["magnetic moment"]["vectors"]
+    assert sorted(moment[2] for moment in moments) == pytest.approx([-4.6, 4.6])
+    assert widget.viewer._widget.showVectorField is True
+
+
+def test_structure_load_from_mcif_file_with_dotted_filename():
+    """A filename with multiple dots before the .mcif suffix is still detected."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file("0.15_MnF2.mcif", structure_file.read_bytes())
+    assert isinstance(widget.viewer, WeasWidget)
+    assert len(widget.children) == 2
+    assert widget._magnetic_toggle.value is True
+
+
+def test_mcif_toggle_controls_vector_field_visibility():
+    """The magnetic moment toggle checkbox shows/hides the vector field."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert widget.viewer._widget.showVectorField is True
+    widget._magnetic_toggle.value = False
+    assert widget.viewer._widget.showVectorField is False
+
+
+def test_mcif_thickness_slider_controls_vector_field_radius():
+    """The arrow thickness slider updates the radius of every vector group."""
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert widget.viewer.avr.vf.settings["magnetic moment"]["radius"] == pytest.approx(
+        0.1
+    )
+    widget._magnetic_thickness_slider.value = 0.25
+    assert widget.viewer.avr.vf.settings["magnetic moment"]["radius"] == pytest.approx(
+        0.25
+    )
+
+
+def test_mcif_missing_pymatgen_dependency(monkeypatch):
+    """A helpful message is shown when pymatgen is not installed."""
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("pymatgen"):
+            raise ImportError("No module named 'pymatgen'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    widget = StructureViewWidget()
+    structure_file = Path(__file__).resolve().parent / "data/MnF2.mcif"
+    widget.assign_structure_from_file(structure_file.name, structure_file.read_bytes())
+    assert widget.viewer is None
+    assert len(widget.children) == 1
+    assert isinstance(widget.children[0], HTML)
+    assert "pymatgen" in widget.children[0].value
 
 
 def test_edited_flag_clean_after_programmatic_load():
