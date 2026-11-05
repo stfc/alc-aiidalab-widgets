@@ -573,3 +573,7 @@ if aiida_pseudo is not None:
         def _on_installed(self, _change: dict) -> None:
             """Refresh the list of installed families after a new one is installed."""
             self.list_widget.refresh()
+
+else:
+    class PseudoManagerWidget(ipw.VBox):
+        """Dummy class for non-users."""
