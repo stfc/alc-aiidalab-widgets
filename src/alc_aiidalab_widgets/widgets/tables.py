@@ -1,5 +1,6 @@
 """Widgets used for displaying tabular information."""
 
+import re
 from collections.abc import Iterable
 from itertools import zip_longest
 from pathlib import Path
@@ -98,10 +99,11 @@ class GenericArrayDataTableWidget(VBox):
     </style>
     """
 
-    def __init__(self, array: ArrayData, **kwargs):
+    def __init__(self, array: ArrayData, units: dict[str, str] | None = None, **kwargs):
         """GenericArrayDataTableWidget Constructor."""
         super().__init__(**kwargs)
         self.array = array
+        self.units = units or {}
         self.show_selector = MultiSelect(
             self.array.get_arraynames(),
             layout=Layout(display="flex", width="100%", flex_flow="row wrap"),
@@ -150,6 +152,7 @@ class GenericArrayDataTableWidget(VBox):
         cls,
         file: TextIO | Iterable[str] | Path | str,
         header: Iterable[str] = (),
+        units: dict[str, str] | None = None,
         **kwargs,
     ):
         """Create an table display from a file."""
@@ -157,13 +160,20 @@ class GenericArrayDataTableWidget(VBox):
         header = tuple(header)
         if not header:
             header = [f"Column_{i}" for i, _ in enumerate(res, 1)]
-        return cls(ArrayData(dict(zip(header, res, strict=True))))
+        return cls(ArrayData(dict(zip(header, res, strict=True))), units=units)
 
     def _deselect(self, _) -> None:
         self.show_selector.value = set()
 
     def _select_all(self, _) -> None:
         self.show_selector.value = set(self.show_selector.options)
+
+    def _w_unit(self, inp: str) -> str:
+        for key, unit in self.units.items():
+            if re.search(key, inp):
+                return f"{inp} ({unit})"
+
+        return inp
 
     @property
     def _col_mapping(self) -> dict[str, NDArray] | None:
@@ -181,10 +191,14 @@ class GenericArrayDataTableWidget(VBox):
         for col, value in zip(cols, values, strict=True):
             if value.ndim == 2:
                 columns.update(
-                    {f"{col}_{i}": value[:, i] for i in range(value.shape[1])}
+                    {
+                        self._w_unit(f"{col}_{i}"): value[:, i]
+                        for i in range(value.shape[1])
+                    }
                 )
             else:
-                columns[col] = value
+                proc_col = self._w_unit(col)
+                columns[proc_col] = value
 
         return columns
 
