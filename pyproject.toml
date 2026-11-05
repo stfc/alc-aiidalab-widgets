@@ -41,11 +41,12 @@ Source = "https://github.com/stfc/alc-aiidalab-widgets"
 [dependency-groups]
 docs = ["sphinx>=8.0.2", "sphinx-toolbox", "piccolo-theme"]
 lint = ["ruff>=0.11.0"]
-test = ["pytest>=8.0", "pytest-cov>=6.0", "pymatgen"]
+test = ["pytest>=8.0", "pytest-cov>=6.0", "pymatgen", "aiida-pseudo"]
 dev = [{ include-group = "lint" }, { include-group = "test" }, "pre-commit"]
 
 [project.optional-dependencies]
 magnetic = ["pymatgen"]
+pseudo = ["aiida-pseudo"]
 
 [tool.ruff]
 line-length = 88
