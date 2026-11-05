@@ -57,7 +57,7 @@ class _FakeResponse:
         """Pretend the request always succeeds."""
 
 
-def test_pseudo_family_list_widget(aiida_profile):
+def test_pseudo_family_list_widget(aiida_profile_clean):
     """Test listing installed pseudopotential families."""
     widget = pseudos.PseudoFamilyListWidget()
     assert "No pseudopotential families" in widget.table.value
@@ -87,7 +87,7 @@ def test_pseudo_family_install_widget_tabs():
     )
 
 
-def test_pseudo_manager_widget_refreshes_after_install(aiida_profile):
+def test_pseudo_manager_widget_refreshes_after_install(aiida_profile_clean):
     """Test that the manager widget refreshes its list after an install is reported."""
     manager = pseudos.PseudoManagerWidget()
     assert "No pseudopotential families" in manager.list_widget.table.value
@@ -98,7 +98,7 @@ def test_pseudo_manager_widget_refreshes_after_install(aiida_profile):
     assert "dummy-family" in manager.list_widget.table.value
 
 
-def test_sssp_install_panel_already_installed(aiida_profile, monkeypatch):
+def test_sssp_install_panel_already_installed(aiida_profile_clean, monkeypatch):
     """Test that installing an already-present SSSP configuration only warns."""
     configuration = pseudos.SsspFamily.valid_configurations[0]
     label = pseudos.SsspFamily.format_configuration_label(configuration)
@@ -117,7 +117,7 @@ def test_sssp_install_panel_already_installed(aiida_profile, monkeypatch):
     assert "already installed" in panel.status.value
 
 
-def test_sssp_install_panel_success(aiida_profile, monkeypatch):
+def test_sssp_install_panel_success(aiida_profile_clean, monkeypatch):
     """Test the SSSP install panel's success path."""
     configuration = pseudos.SsspFamily.valid_configurations[1]
     label = pseudos.SsspFamily.format_configuration_label(configuration)
@@ -164,7 +164,7 @@ def test_sssp_install_panel_failure():
     assert "network unreachable" in panel.status.value
 
 
-def test_custom_family_install_panel_validation(aiida_profile):
+def test_custom_family_install_panel_validation(aiida_profile_clean):
     """Test the custom family install panel's input validation."""
     panel = pseudos._CustomFamilyInstallPanel(lambda _message: None)
 
@@ -176,7 +176,7 @@ def test_custom_family_install_panel_validation(aiida_profile):
     assert "upload an archive or provide a url" in panel.status.value.lower()
 
 
-def test_custom_family_install_panel_success(aiida_profile, monkeypatch):
+def test_custom_family_install_panel_success(aiida_profile_clean, monkeypatch):
     """Test the custom family install panel's success path using a URL source."""
     archive_bytes = _make_tar_archive({"Si.UPF": b"dummy pseudo content"})
     monkeypatch.setattr(
