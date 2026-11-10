@@ -6,10 +6,11 @@ from .database import AiiDADatabaseQueryWidget
 from .download import Download
 from .file_handling import FileUploadWidget
 from .loading import LoadingWidget
+from .plots import PlotWidget
 from .pseudos import PseudoManagerWidget
 from .status import Status
 from .structure import StructureViewWidget
-from .tables import XYZArrayDataTableWidget
+from .tables import GenericArrayDataTableWidget, XYZArrayDataTableWidget
 
 __all__ = [
     "AiiDADatabaseQueryWidget",
@@ -17,7 +18,9 @@ __all__ = [
     "CodeSelector",
     "Download",
     "FileUploadWidget",
+    "GenericArrayDataTableWidget",
     "LoadingWidget",
+    "PlotWidget",
     "PseudoManagerWidget",
     "Status",
     "StructureViewWidget",

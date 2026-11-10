@@ -11,18 +11,48 @@
 
 This is a collection of commonly used widgets used across AiiDAlab plugins developed by
 the Ada Lovelace Centre (STFC). It provides re-usable components and consistent styling
-which can be deployed to any new or developing AiiDAlab plugin. It can be installed via
-pip,
+which can be deployed to any new or developing AiiDAlab plugin.
+
+## Quick Start
+
+Install the package via pip. Some widgets rely on optional extras to keep the base
+install lightweight — add `[pseudo]` for `PseudoManagerWidget` (requires `aiida-pseudo`)
+and/or `[magnetic]` for magnetic structure support in `StructureViewWidget` (requires
+`pymatgen`).
 
 ``` sh
 pip install alc-aiidalab-widgets
 ```
 
-and then imported within any python project as,
+Widgets are imported from the `alc_aiidalab_widgets.widgets` subpackage and used like
+any other [ipywidgets](https://ipywidgets.readthedocs.io/) widget — most naturally in a
+Jupyter notebook or an AiiDAlab app:
 
 ``` python
-import alc_aiidalab_widgets
+from alc_aiidalab_widgets.widgets import Status, StructureViewWidget
+import ipywidgets as ipw
+
+structure_node = ...  # an AiiDA StructureData, TrajectoryData or SinglefileData node
+
+status = Status()
+viewer = StructureViewWidget(node=structure_node)
+ipw.VBox([status, viewer])
 ```
+
+AiiDAlab apps can also route AiiDA nodes to the right widget automatically by merging
+this package's viewer mapping into `aiidalab-widgets-base`'s own:
+
+``` python
+from aiidalab_widgets_base.viewers import AIIDA_VIEWER_MAPPING, viewer
+from alc_aiidalab_widgets.viewers import ALC_AIIDA_VIEWER_MAPPING
+
+AIIDA_VIEWER_MAPPING.update(ALC_AIIDA_VIEWER_MAPPING)
+widget = viewer(structure_node)  # resolves to StructureViewWidget automatically
+```
+
+See the [full documentation](https://stfc.github.io/alc-aiidalab-widgets/) for a
+description of every widget, the viewer-routing mechanism, and the complete API
+reference.
 
 ## For Developers
 

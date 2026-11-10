@@ -29,12 +29,12 @@ class ParametersBlock(ipw.GridspecLayout):
     default_args : dict[str, Any]
         Dictionary of settings blocks -> Parameter settings.
 
-        The keys will form the labels in the parameters dropdown.
-        e.g.
-        default_args = {"low_precision": {
-                             "n_samples": 10,
-                             "precision": "low",
-                        }}
+        The keys will form the labels in the parameters dropdown, e.g.::
+
+            default_args = {"low_precision": {
+                                 "n_samples": 10,
+                                 "precision": "low",
+                            }}
     """
 
     def __init__(
@@ -44,7 +44,6 @@ class ParametersBlock(ipw.GridspecLayout):
         default_args: dict[str, dict[str, Any]],
         **kwargs,
     ):
-
         self.name = name
         self.widget_ref = widget_ref
 

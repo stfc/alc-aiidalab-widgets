@@ -37,6 +37,9 @@ dependencies = [
 
 [project.urls]
 Source = "https://github.com/stfc/alc-aiidalab-widgets"
+Documentation = "https://stfc.github.io/alc-aiidalab-widgets/"
+Issues = "https://github.com/stfc/alc-aiidalab-widgets/issues"
+Changelog = "https://github.com/stfc/alc-aiidalab-widgets/releases"
 
 [dependency-groups]
 docs = ["sphinx>=8.0.2", "sphinx-toolbox", "piccolo-theme"]
