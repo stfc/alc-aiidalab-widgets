@@ -57,7 +57,7 @@ class CodeSelector(ipw.HBox):
         self.code = ipw.Dropdown(
             description=description if description else code_name,
             style={"description_width": "180px"},
-            layout={"width": "70%"},
+            layout={"width": "65%"},
         )
         self.update_codes()
         tl.link((self.code, "value"), (model, f"{code_name}_code"))
@@ -77,7 +77,7 @@ class CodeSelector(ipw.HBox):
                 max=1024,
                 description="# procs",
                 style={"description_width": "60px"},
-                layout={"width": "15%"},
+                layout={"width": "20%"},
                 disabled=not self.withmpi.value,
             )
             tl.link((model, f"{code_name}_num_mpiprocs"), (self.num_mpiprocs, "value"))
