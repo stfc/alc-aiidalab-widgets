@@ -4,6 +4,8 @@ import ipywidgets as ipw
 import traitlets as tl
 from aiida.orm import ContainerizedCode, InstalledCode, PortableCode, QueryBuilder
 
+DEFAULT_MAX_MPIPROCS = 1024
+
 
 class CodeSelector(ipw.HBox):
     """
@@ -54,6 +56,9 @@ class CodeSelector(ipw.HBox):
         """
         self.code_name = code_name
         self.auto_default = auto_default
+        self._codes_by_label: dict[
+            str, InstalledCode | ContainerizedCode | PortableCode
+        ] = {}
         self.code = ipw.Dropdown(
             description=description if description else code_name,
             style={"description_width": "180px"},
@@ -74,7 +79,7 @@ class CodeSelector(ipw.HBox):
 
             self.num_mpiprocs = ipw.BoundedIntText(
                 min=1,
-                max=1024,
+                max=DEFAULT_MAX_MPIPROCS,
                 description="# procs",
                 style={"description_width": "60px"},
                 layout={"width": "20%"},
@@ -82,6 +87,8 @@ class CodeSelector(ipw.HBox):
             )
             tl.link((model, f"{code_name}_num_mpiprocs"), (self.num_mpiprocs, "value"))
             self.withmpi.observe(self._on_withmpi_change, "value")
+            self.code.observe(self._on_code_change, "value")
+            self._update_mpi_limits(self.code.value)
 
             children += [self.withmpi, self.num_mpiprocs]
 
@@ -97,6 +104,50 @@ class CodeSelector(ipw.HBox):
         self.num_mpiprocs.disabled = not change["new"]
         return
 
+    def _on_code_change(self, change: dict) -> None:
+        """Keep the MPI controls in sync with the resources of the new code."""
+        self._update_mpi_limits(change["new"])
+        return
+
+    def _update_mpi_limits(self, label: str | None) -> None:
+        """Reset the MPI controls to the maximum the selected code supports.
+
+        ``with_mpi`` is an explicit opt-in/opt-out on the code: ``False``
+        means MPI is unsupported, ``True`` means it is, and the process
+        count is capped by the computer's configured
+        ``default_mpiprocs_per_machine`` if set, else by the generic
+        :data:`DEFAULT_MAX_MPIPROCS`. Codes created through the AiiDAlab
+        "Setup new code" widgets never set ``with_mpi`` though, so when it's
+        left as ``None`` we fall back to the computer's configured
+        ``default_mpiprocs_per_machine`` to decide both whether MPI is
+        possible and how many processes are allowed: a configured value
+        greater than 1 means MPI is supported with that many processes,
+        otherwise MPI is treated as unsupported.
+
+        Selecting a new code always resets the toggle and process count to
+        the maximum it supports, rather than merely capping an existing
+        selection.
+        """
+        code = self._codes_by_label.get(label)
+        mpi_capable = False
+        max_mpiprocs = 1
+
+        if code is not None:
+            configured = code.computer.get_default_mpiprocs_per_machine()
+            if code.with_mpi is True:
+                mpi_capable = True
+                max_mpiprocs = configured or DEFAULT_MAX_MPIPROCS
+            elif code.with_mpi is None:
+                mpi_capable = bool(configured and configured > 1)
+                max_mpiprocs = configured if mpi_capable else 1
+
+        self.num_mpiprocs.max = max_mpiprocs
+        self.num_mpiprocs.value = max_mpiprocs if mpi_capable else 1
+
+        self.withmpi.disabled = not mpi_capable
+        self.withmpi.value = mpi_capable
+        return
+
     def update_codes(self, _=None) -> None:
         """Update the list of available codes, pre-selecting a sensible default.
 
@@ -109,14 +160,16 @@ class CodeSelector(ipw.HBox):
         qb.append((InstalledCode, ContainerizedCode, PortableCode))
         codes = [code for (code,) in qb.all()]
         code_labels = [f"{code.label}@{code.computer.label}" for code in codes]
+        self._codes_by_label = dict(zip(code_labels, codes, strict=False))
         self.code.options = ["", *code_labels]
 
-        if not self.auto_default or self.code.value in code_labels:
-            return
+        if self.auto_default and self.code.value not in code_labels:
+            executable_name = f"{self.code_name}.x".lower()
+            for code, label in zip(codes, code_labels, strict=False):
+                if code.get_executable().name.lower() == executable_name:
+                    self.code.value = label
+                    break
 
-        executable_name = f"{self.code_name}.x".lower()
-        for code, label in zip(codes, code_labels, strict=False):
-            if code.get_executable().name.lower() == executable_name:
-                self.code.value = label
-                return
+        if hasattr(self, "num_mpiprocs"):
+            self._update_mpi_limits(self.code.value)
         return
