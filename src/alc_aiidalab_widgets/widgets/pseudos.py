@@ -575,5 +575,6 @@ if aiida_pseudo is not None:
             self.list_widget.refresh()
 
 else:
+
     class PseudoManagerWidget(ipw.VBox):
         """Dummy class for non-users."""
