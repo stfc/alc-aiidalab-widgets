@@ -148,8 +148,11 @@ class AiiDADatabaseQueryWidget(ipw.VBox, HasTraits):
             qbuild.append(self.drop_down.value, filters=filters, tag="search_results")
 
         qbuild.order_by({"search_results": {"ctime": "desc"}})
-        matches = {n[0] for n in qbuild.iterall()}
-        matches = sorted(matches, reverse=True, key=lambda n: n.ctime)
+        # Dedupe by pk rather than hashing the nodes themselves: some node
+        # types (e.g. `List`) override `__eq__` without defining `__hash__`,
+        # which makes them unhashable and breaks a plain set comprehension.
+        matches = {n[0].pk: n[0] for n in qbuild.iterall()}
+        matches = sorted(matches.values(), reverse=True, key=lambda n: n.ctime)
 
         options = [(f"Select a Node ({len(matches)} found)", False)]
         for mch in matches:
