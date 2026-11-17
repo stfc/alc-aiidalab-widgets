@@ -11,7 +11,10 @@ from ase import Atoms
 from ipywidgets import HTML
 from weas_widget import WeasWidget
 
-from alc_aiidalab_widgets.widgets.structure import StructureViewWidget
+from alc_aiidalab_widgets.widgets.structure import (
+    StructureViewWidget,
+    build_binned_vector_field,
+)
 
 
 def test_structure_load_from_file():
@@ -284,6 +287,50 @@ def test_set_vector_field_from_dict():
     assert widget.viewer._widget.showVectorField is True
 
 
+def test_set_vector_field_rebuilds_viewer_on_subsequent_calls():
+    """A later call must rebuild the viewer, not update the existing one.
+
+    Regression test: two earlier, less drastic fixes were tried and found
+    insufficient in real browser use -- clearing `vf.settings` to `{}`
+    immediately before the new dict, and issuing an explicit `avr.draw()`
+    redraw command. Neither reliably discarded a previous vector field's
+    stale arrows when the new one was smaller. Rebuilding the viewer from
+    scratch is the only confirmed-working fix (a fresh viewer has nothing
+    stale to leave behind); this asserts that rebuild actually happens (a
+    new `viewer` object identity) while the displayed structure survives it
+    unchanged.
+    """
+    widget = StructureViewWidget()
+    widget.assign_structure_from_ase(
+        Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]])
+    )
+    widget.set_vector_field(
+        {"a": {"origins": [[0, 0, 0]], "vectors": [[1.0, 0, 0]], "color": "red"}}
+    )
+    first_viewer = widget.viewer
+
+    widget.set_vector_field(
+        {"b": {"origins": [[0, 0, 0]], "vectors": [[0, 1.0, 0]], "color": "blue"}}
+    )
+
+    assert widget.viewer is not first_viewer
+    assert set(widget.viewer.avr.vf.settings.keys()) == {"b"}
+    assert widget.to_ase().get_chemical_symbols() == ["H", "H", "O"]
+
+
+def test_set_vector_field_does_not_rebuild_on_first_call():
+    """The very first call (no stale field yet) should not need a rebuild."""
+    widget = StructureViewWidget()
+    widget.assign_structure_from_ase(Atoms("H2O", positions=[[0, 0, 0]] * 3))
+    first_viewer = widget.viewer
+
+    widget.set_vector_field(
+        {"a": {"origins": [[0, 0, 0]], "vectors": [[1.0, 0, 0]], "color": "red"}}
+    )
+
+    assert widget.viewer is first_viewer
+
+
 def test_set_vector_field_clears_vector_field():
     """Passing None removes an existing vector field and its controls."""
     widget = StructureViewWidget()
@@ -379,3 +426,57 @@ def test_to_aiida_returns_structuredata():
     structure_ase = node.get_ase()
     assert structure_ase.get_chemical_symbols() == ["H", "H", "O"]
     assert np.allclose(structure_ase.get_positions(), positions)
+
+
+def test_build_binned_vector_field_groups_by_magnitude():
+    """Magnitudes should be binned into equal-width, distinctly colored groups."""
+    origins = [[0, 0, 0]] * 5
+    vectors = [[1, 0, 0]] * 5
+    magnitudes = [0.1, 0.2, 0.3, 5.0, 5.1]
+
+    settings = build_binned_vector_field(origins, vectors, magnitudes, n_bins=3)
+
+    assert len(settings) == 2
+    total_arrows = sum(len(group["origins"]) for group in settings.values())
+    assert total_arrows == 5
+    colors = {group["color"] for group in settings.values()}
+    assert len(colors) == 2
+
+
+def test_build_binned_vector_field_empty():
+    """An empty input should return an empty settings dict, not raise."""
+    assert build_binned_vector_field([], [], []) == {}
+
+
+def test_build_binned_vector_field_constant_magnitude():
+    """All-equal magnitudes should fall into a single bin, not divide by zero."""
+    settings = build_binned_vector_field(
+        [[0, 0, 0], [1, 0, 0]], [[1, 0, 0], [1, 0, 0]], [2.0, 2.0]
+    )
+
+    assert len(settings) == 1
+    (group,) = settings.values()
+    assert len(group["origins"]) == 2
+
+
+def test_build_binned_vector_field_arrow_length_normalises_magnitude():
+    """`arrow_length` should rescale every vector to the same length.
+
+    Direction and the magnitude-based color binning must be unaffected --
+    only the drawn length changes, decoupling it from whatever unrelated
+    quantity `vectors` happens to encode (e.g. bond distance).
+    """
+    vectors = [[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, 10.0]]
+    magnitudes = [5.0, 1.0, 0.1]
+
+    settings = build_binned_vector_field(
+        [[0, 0, 0]] * 3, vectors, magnitudes, arrow_length=2.0
+    )
+
+    lengths = [
+        np.linalg.norm(vector)
+        for group in settings.values()
+        for vector in group["vectors"]
+    ]
+    assert all(np.isclose(length, 2.0) for length in lengths)
+    assert len(lengths) == 3

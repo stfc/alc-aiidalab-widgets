@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+import numpy
 import traitlets
 from aiida.orm import Node, SinglefileData, StructureData, TrajectoryData
 from ase import Atoms
@@ -18,6 +19,96 @@ _MAGNETIC_MOMENT_THRESHOLD = 1e-3
 # Default shaft/head radius (in the structure's length units) of the arrows
 # used to draw magnetic moment vectors
 _DEFAULT_ARROW_RADIUS = 0.1
+
+# Default low-to-high magnitude color scale for `build_binned_vector_field`:
+# a single-hue pale-to-dark blue sequence (ColorBrewer "Blues", 4-class)
+_DEFAULT_BIN_COLORS = ("#eff3ff", "#bdd7e7", "#6baed6", "#2171b5")
+
+
+def build_binned_vector_field(
+    origins: Sequence[Sequence[float]],
+    vectors: Sequence[Sequence[float]],
+    magnitudes: Sequence[float],
+    *,
+    n_bins: int = 4,
+    colors: Sequence[str] = _DEFAULT_BIN_COLORS,
+    radius: float = _DEFAULT_ARROW_RADIUS,
+    arrow_length: float | None = None,
+) -> dict:
+    """Bin vectors by magnitude into WeasWidget vector-field groups.
+
+    WeasWidget's vector-field plugin (`viewer.avr.vf`, wrapped by
+    `StructureViewWidget.set_vector_field`) only supports one shared
+    color/radius per named group, not continuous per-arrow colouring. This
+    bins `magnitudes` into `n_bins` equal-width strength bands and gives
+    each band its own named group with a distinct color, as a pale-to-dark
+    approximation of continuous colouring (e.g. for drawing exchange-coupling
+    bonds coloured by |J|).
+
+    Parameters
+    ----------
+    origins : Sequence[Sequence[float]]
+        One cartesian origin per vector (e.g. a bond's starting atom).
+    vectors : Sequence[Sequence[float]]
+        One cartesian vector per origin, matching `origins`.
+    magnitudes : Sequence[float]
+        The scalar magnitude used to bin each vector (e.g. |J|); need not be
+        the vector's own norm.
+    n_bins : int, optional
+        Number of equal-width strength bands. Defaults to 4.
+    colors : Sequence[str], optional
+        One color per band, low to high magnitude. Defaults to a 4-color
+        pale-to-dark blue scale.
+    radius : float, optional
+        Arrow shaft/head radius, shared by all bands. Defaults to
+        `_DEFAULT_ARROW_RADIUS`.
+    arrow_length : float, optional
+        If given, every arrow is rescaled to this fixed length (direction
+        preserved), decoupling the displayed length from `vectors`' own
+        magnitude -- e.g. so coupling strength (color) isn't visually
+        confused with the unrelated quantity `vectors` happens to encode
+        (such as bond distance). If `None` (default), `vectors` are drawn
+        at their literal magnitude.
+
+    Returns
+    -------
+    dict
+        A WeasWidget vector field settings dict (one group per non-empty
+        band), directly usable with `StructureViewWidget.set_vector_field`.
+        Empty if `magnitudes` is empty.
+    """
+    origins = numpy.asarray(origins, dtype=float)
+    vectors = numpy.asarray(vectors, dtype=float)
+    magnitudes = numpy.asarray(magnitudes, dtype=float)
+
+    if len(magnitudes) == 0:
+        return {}
+
+    if arrow_length is not None:
+        norms = numpy.linalg.norm(vectors, axis=1, keepdims=True)
+        vectors = vectors / norms * arrow_length
+
+    lo, hi = magnitudes.min(), magnitudes.max()
+    if lo == hi:
+        bin_indices = numpy.zeros(len(magnitudes), dtype=int)
+    else:
+        edges = numpy.linspace(lo, hi, n_bins + 1)
+        bin_indices = numpy.clip(numpy.digitize(magnitudes, edges[1:-1]), 0, n_bins - 1)
+
+    settings = {}
+    for bin_index in range(n_bins):
+        mask = bin_indices == bin_index
+        if not mask.any():
+            continue
+        band_lo = lo + bin_index * (hi - lo) / n_bins
+        band_hi = lo + (bin_index + 1) * (hi - lo) / n_bins
+        settings[f"{band_lo:.3g}-{band_hi:.3g}"] = {
+            "origins": origins[mask].tolist(),
+            "vectors": vectors[mask].tolist(),
+            "color": colors[bin_index],
+            "radius": radius,
+        }
+    return settings
 
 
 def _build_magnetic_vector_field(
@@ -259,8 +350,15 @@ class StructureViewWidget(VBox):
         for a convenience wrapper that builds the settings dict for magnetic
         moments from a plain per-atom vector list. Can be called at any time
         after a structure has been assigned (not just at load time) to add,
-        replace, or remove the vector arrows in place, without reloading the
-        structure's geometry.
+        replace, or remove the vector arrows.
+
+        Note: if a vector field is already being shown, calling this again
+        rebuilds the underlying 3D viewer (resetting the camera position/
+        zoom/rotation) rather than updating it in place -- confirmed directly
+        that WeasWidget's vector-field renderer does not reliably discard
+        stale arrows from a previous call otherwise, and neither clearing the
+        settings first nor issuing an explicit redraw command fixes that. A
+        fresh viewer has nothing stale to leave behind.
 
         Parameters
         ----------
@@ -279,6 +377,9 @@ class StructureViewWidget(VBox):
             raise RuntimeError(
                 "Cannot set a vector field before a structure has been assigned."
             )
+        if self.viewer.avr.vf.settings:
+            self._rebuild_viewer()
+
         if settings:
             self.viewer.avr.vf.settings = settings
             self.viewer.avr.vf.show = True
@@ -289,6 +390,23 @@ class StructureViewWidget(VBox):
         else:
             self.viewer.avr.vf.settings = {}
             self.children = [self.viewer]
+        return
+
+    def _rebuild_viewer(self) -> None:
+        """Destroy and recreate the WeasWidget viewer, reloading current atoms.
+
+        See `set_vector_field`'s docstring for why this is necessary. Resets
+        the camera position/zoom/rotation as a side effect.
+        """
+        atoms = self.viewer.to_ase()
+        self.viewer = None
+        self._magnetic_controls = None
+        self._ensure_viewer()
+        self._loading = True
+        try:
+            self.viewer.from_ase(atoms)
+        finally:
+            self._loading = False
         return
 
     def set_magnetic_vectors(self, vectors: Sequence[Sequence[float]] | None) -> None:
