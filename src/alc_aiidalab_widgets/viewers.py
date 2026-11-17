@@ -1,5 +1,7 @@
 """Defines custom viewers for AiiDA nodes."""
 
+from functools import partial
+
 from alc_aiidalab_widgets.widgets.file_viewer import SinglefileDataViewer
 from alc_aiidalab_widgets.widgets.process_node_view import ProcessNodeViewerWidget
 from alc_aiidalab_widgets.widgets.structure import StructureViewWidget
@@ -24,6 +26,20 @@ ALC_AIIDA_VIEWER_MAPPING = {
     # arrows.
     "data.wannier90_workflows.MagneticStructureData.MagneticStructureData.": (
         StructureViewWidget
+    ),
+    # ExchangeCouplingData from the optional aiida-cif2j package
+    "data.cif2j.exchange_coupling.ExchangeCouplingData.": partial(
+        GenericArrayDataTableWidget,
+        units={"J_iso": "meV", "distance": "Ang", "distance_vector": "Ang"},
+    ),
+    # DMIVectorData/AnisotropicExchangeData from the optional aiida-cif2j package
+    "data.cif2j.dmi_vectors.DMIVectorData.": partial(
+        GenericArrayDataTableWidget,
+        units={"dmi_vector": "meV", "distance": "Ang", "distance_vector": "Ang"},
+    ),
+    "data.cif2j.anisotropic_exchange.AnisotropicExchangeData.": partial(
+        GenericArrayDataTableWidget,
+        units={"J_tensor": "meV", "distance": "Ang", "distance_vector": "Ang"},
     ),
     # Custom redirections
     "xyz_table": XYZArrayDataTableWidget,
