@@ -73,8 +73,9 @@ def test_generic_arraydata_plot_button():
 
     widget.show_selector.value = {"Energy_series"}
 
-    # Before clicking, the plot button is present.
+    # Before clicking, the plot button and the plot type selector are present.
     assert widget.show_plt_btn in widget.plots.children
+    assert widget.plot_type_selector.value == "Line"
 
     # Simulate a user clicking the button (triggers the on_click callback).
     widget.show_plt_btn.click()
@@ -85,6 +86,13 @@ def test_generic_arraydata_plot_button():
     assert numpy.array_equal(plot.figure.data[0].y, array.get_array("Energy_series"))
     # The y label is derived from the (prettified) array name.
     assert plot.figure.layout.yaxis.title.text == "Energy_series"
+    assert plot.figure.data[0].mode == "lines+markers"
+
+    # Changing the plot type immediately re-renders the existing plot.
+    widget.plot_type_selector.value = "Scatter"
+    plot = widget.children[1]
+    assert isinstance(plot, PlotWidget)
+    assert plot.figure.data[0].mode == "markers"
 
 
 def test_plot_button_uses_selected_array():

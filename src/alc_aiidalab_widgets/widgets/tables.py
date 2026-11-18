@@ -13,7 +13,7 @@ from numpy import floating as npfloat
 from numpy.typing import NDArray
 
 from alc_aiidalab_widgets.widgets.multiselect import MultiSelect
-from alc_aiidalab_widgets.widgets.plots import PlotWidget
+from alc_aiidalab_widgets.widgets.plots import PLOT_TYPE_MODES, PlotWidget
 
 
 class XYZArrayDataTableWidget(VBox):
@@ -116,6 +116,12 @@ class GenericArrayDataTableWidget(VBox):
             layout={"width": "50%"},
             **kwargs,
         )
+        self.plot_type_selector = Dropdown(
+            options=list(PLOT_TYPE_MODES),
+            value="Line",
+            description="Plot Type:",
+            layout={"width": "30%"},
+        )
         self.deselect = Button(
             description="Clear selection",
             disabled=False,
@@ -139,12 +145,19 @@ class GenericArrayDataTableWidget(VBox):
             layout={"align_self": "flex-end"},
         )
         self.plots = HBox(
-            [self.x_selector, self.select_all, self.deselect, self.show_plt_btn]
+            [
+                self.x_selector,
+                self.plot_type_selector,
+                self.select_all,
+                self.deselect,
+                self.show_plt_btn,
+            ]
         )
         self.show_plt_btn.on_click(self._plot_data)
         self.deselect.on_click(self._deselect)
         self.select_all.on_click(self._select_all)
         self.show_selector.observe(self._render_array, "value")
+        self.plot_type_selector.observe(self._on_plot_type_change, "value")
         self._render_array()
 
     @classmethod
@@ -227,7 +240,7 @@ class GenericArrayDataTableWidget(VBox):
             html += f"<td id='indexcol'>{r}</td>"
             for elem in row:
                 formatted_val = (
-                    f"{elem:.6f}" if isinstance(elem, (float, npfloat)) else str(elem)
+                    f"{elem:.6f}" if isinstance(elem, float | npfloat) else str(elem)
                 )
                 html += f"<td>{formatted_val}</td>"
             html += "</tr>"
@@ -235,6 +248,11 @@ class GenericArrayDataTableWidget(VBox):
         html += "</tbody></table></div>"
         self.table = HTML(self.DEFAULT_STYLE + html)
         self.children = [self.plots, self.show_selector, self.table]
+
+    def _on_plot_type_change(self, _change) -> None:
+        """Re-render the plot immediately if one is already displayed."""
+        if len(self.children) > 1 and isinstance(self.children[1], PlotWidget):
+            self._plot_data()
 
     def _plot_data(self, _=None) -> None:
         """Plot the currently selected array data."""
@@ -260,6 +278,7 @@ class GenericArrayDataTableWidget(VBox):
             data_series=y_values,
             x_values=x_values,
             x_label=self.x_selector.value,
+            plot_type=self.plot_type_selector.value,
             **opts,
         )
 

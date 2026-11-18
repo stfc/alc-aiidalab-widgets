@@ -6,6 +6,15 @@ import numpy
 import plotly.graph_objects as go
 from ipywidgets import VBox
 
+# Maps each selectable plot type to the Plotly `mode` used for its go.Scatter
+# traces. A future plot type that isn't a scatter variant
+# won't fit this mode-based mapping and will need its own branch in
+# `PlotWidget._render` instead.
+PLOT_TYPE_MODES: dict[str, str] = {
+    "Line": "lines+markers",
+    "Scatter": "markers",
+}
+
 
 class PlotWidget(VBox):
     """Interactive line plot for one or more data series based on plotly.
@@ -25,6 +34,7 @@ class PlotWidget(VBox):
         x_label: str = "Index",
         series_labels: Sequence[str] | None = None,
         title: str = "",
+        plot_type: str = "Line",
         **kwargs,
     ):
         """PlotWidget Constructor.
@@ -46,8 +56,18 @@ class PlotWidget(VBox):
             labelled ``"Series 1"``, ``"Series 2"`` and so on.
         title : str, optional
             Title displayed above the plot.
+        plot_type : str, optional
+            One of the keys of :data:`PLOT_TYPE_MODES` (``"Line"`` by
+            default), selecting whether series are drawn with connecting
+            lines or as markers only.
         """
         super().__init__(**kwargs)
+
+        if plot_type not in PLOT_TYPE_MODES:
+            raise ValueError(
+                f"plot_type must be one of {list(PLOT_TYPE_MODES)}, got {plot_type!r}."
+            )
+        self.plot_type = plot_type
 
         # Accept either a single array (one series) or a collection of arrays.
         if isinstance(data_series, numpy.ndarray) and data_series.ndim == 1:
@@ -86,6 +106,7 @@ class PlotWidget(VBox):
 
     def _render(self) -> None:
         """(Re)build the plotly figure from the current data series."""
+        mode = PLOT_TYPE_MODES[self.plot_type]
         with self.figure.batch_update():
             self.figure.data = []
             for series, label in zip(self.data_series, self.series_labels, strict=True):
@@ -93,7 +114,7 @@ class PlotWidget(VBox):
                     go.Scatter(
                         x=self._series_x(series).tolist(),
                         y=series.tolist(),
-                        mode="lines+markers",
+                        mode=mode,
                         name=label,
                     )
                 )

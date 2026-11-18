@@ -69,6 +69,19 @@ def test_custom_labels_and_title():
     assert widget.figure.data[0].name == "Fx"
 
 
+def test_scatter_plot_type():
+    """The "Scatter" plot type renders markers only, without a connecting line."""
+    y = numpy.array([0.0, 1.0, 4.0, 9.0])
+    widget = PlotWidget(data_series=y, plot_type="Scatter")
+    assert widget.figure.data[0].mode == "markers"
+
+
+def test_invalid_plot_type():
+    """An unrecognised plot_type raises ValueError."""
+    with pytest.raises(ValueError, match="plot_type"):
+        PlotWidget(data_series=numpy.arange(3), plot_type="Histogram")
+
+
 def test_series_label_count_mismatch():
     """A mismatched number of series labels raises ValueError."""
     with pytest.raises(ValueError, match="series labels"):
