@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import queue
 import tempfile
 import threading
 from collections.abc import Callable
@@ -230,6 +231,40 @@ if aiida_pseudo is not None:
         )
         family.set_default_stringency("normal")
 
+    _install_queue: queue.Queue[tuple[Callable[..., None], tuple]] = queue.Queue()
+    _install_worker_thread: threading.Thread | None = None
+
+    def _run_queued_installs() -> None:
+        """Run queued pseudopotential installs one at a time, forever.
+
+        AiiDA's SQLAlchemy storage backend caches some entities (e.g. the
+        default user) against whichever thread first resolved them. Running
+        each install on a brand new ``threading.Thread`` caused later installs
+        to fail with "already attached to a different session" errors, since
+        the cached entity stayed bound to an earlier install's thread/session.
+        Serialising every install onto this single persistent daemon thread
+        keeps the storage backend's thread-local session consistent across
+        installs.
+        """
+        while True:
+            func, args = _install_queue.get()
+            try:
+                func(*args)
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).exception(
+                    "Unhandled error while installing a pseudopotential family."
+                )
+
+    def _submit_install(func: Callable[..., None], *args) -> None:
+        """Queue a pseudopotential install to run on the shared worker thread."""
+        global _install_worker_thread
+        if _install_worker_thread is None or not _install_worker_thread.is_alive():
+            _install_worker_thread = threading.Thread(
+                target=_run_queued_installs, daemon=True
+            )
+            _install_worker_thread.start()
+        _install_queue.put((func, args))
+
     class _ConfigurationInstallPanel(ipw.VBox):
         """Generic panel for installing a versioned pseudopotential family.
 
@@ -290,6 +325,11 @@ if aiida_pseudo is not None:
 
         def _install(self, _=None) -> None:
             """Install the currently selected configuration."""
+            if self.install_btn.disabled:
+                # An install is already in flight; ignore a re-entrant click
+                # (e.g. a double click) received before it completes.
+                return
+
             configuration = self.configuration.value
             label = self._family_class.format_configuration_label(configuration)
 
@@ -303,10 +343,7 @@ if aiida_pseudo is not None:
             self._progress_box.children = [
                 LoadingWidget(message=f"Installing {label}, this can take a while...")
             ]
-            thread = threading.Thread(
-                target=self._run_install, args=(configuration, label), daemon=True
-            )
-            thread.start()
+            _submit_install(self._run_install, configuration, label)
 
         def _run_install(self, configuration, label: str) -> None:
             """Download and install the configuration in a background thread."""
@@ -460,6 +497,11 @@ if aiida_pseudo is not None:
 
         def _install(self, _=None) -> None:
             """Validate the form and install the custom pseudopotential family."""
+            if self.install_btn.disabled:
+                # An install is already in flight; ignore a re-entrant click
+                # (e.g. a double click) received before it completes.
+                return
+
             label = self.label.value.strip()
             self.status.clear()
 
@@ -480,10 +522,7 @@ if aiida_pseudo is not None:
 
             self.install_btn.disabled = True
             self._progress_box.children = [LoadingWidget(message="Installing...")]
-            thread = threading.Thread(
-                target=self._run_install, args=(label,), daemon=True
-            )
-            thread.start()
+            _submit_install(self._run_install, label)
 
         def _resolve_archive(self, dirpath: Path) -> Path:
             """Make the archive to install available as a local file in ``dirpath``."""
