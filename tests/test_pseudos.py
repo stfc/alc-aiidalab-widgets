@@ -3,6 +3,8 @@
 import io
 import tarfile
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -162,6 +164,100 @@ def test_sssp_install_panel_failure():
 
     assert not installed
     assert "network unreachable" in panel.status.value
+
+
+def test_sssp_install_panel_ignores_reentrant_click(aiida_profile_clean, monkeypatch):
+    """A second click while an install is in flight must not start another install."""
+    configuration = pseudos.SsspFamily.valid_configurations[0]
+    label = pseudos.SsspFamily.format_configuration_label(configuration)
+
+    download_calls = []
+    release = threading.Event()
+
+    def fake_download_sssp(cfg, archive, metadata, traceback=False):
+        download_calls.append(cfg)
+        release.wait(timeout=5)
+        archive.write_bytes(b"unused")
+        metadata.write_text("{}")
+
+    def fake_install_sssp(archive, metadata, lbl, description="", traceback=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            dirpath = Path(tmp)
+            (dirpath / "Si.UPF").write_text(UPF_CONTENT)
+            pseudos.SsspFamily.create_from_folder(dirpath, lbl, description=description)
+
+    monkeypatch.setattr(pseudos, "download_sssp", fake_download_sssp)
+    monkeypatch.setattr(pseudos, "install_sssp", fake_install_sssp)
+
+    installed = []
+    panel = pseudos._SsspInstallPanel(installed.append)
+    panel.configuration.value = configuration
+
+    panel._install()
+    assert panel.install_btn.disabled
+
+    # Simulate a second click arriving before the first install has finished.
+    panel._install()
+
+    release.set()
+    for _ in range(100):
+        if not panel.install_btn.disabled:
+            break
+        time.sleep(0.05)
+
+    assert len(download_calls) == 1
+    assert len(installed) == 1
+    query = QueryBuilder().append(pseudos.SsspFamily, filters={"label": label})
+    assert query.count() == 1
+
+
+def test_sequential_installs_do_not_conflict(aiida_profile_clean, monkeypatch):
+    """Two sequential installs on the same panel must both succeed.
+
+    This exercises the shared single-thread install queue (``_submit_install``)
+    that replaced spawning a fresh ``threading.Thread`` per click. The fresh-
+    thread-per-click approach caused a real bug against the ``core.psql_dos``
+    (PostgreSQL + SQLAlchemy) backend, where the storage backend's cached
+    default user stayed bound to the first install's thread/session, causing a
+    second install on a new thread to fail with "Object '...' is already
+    attached to session ...". The test profile used here is ``core.sqlite_dos``,
+    which does not reproduce that failure even with the old per-click-thread
+    code, so this test does not by itself prove the fix against the original
+    bug — it only guards against regressions in the queue-based serialization.
+    """
+    configs = pseudos.SsspFamily.valid_configurations[:2]
+    labels = [pseudos.SsspFamily.format_configuration_label(c) for c in configs]
+
+    def fake_download_sssp(cfg, archive, metadata, traceback=False):
+        archive.write_bytes(b"unused")
+        metadata.write_text("{}")
+
+    def fake_install_sssp(archive, metadata, lbl, description="", traceback=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            dirpath = Path(tmp)
+            (dirpath / "Si.UPF").write_text(UPF_CONTENT)
+            pseudos.SsspFamily.create_from_folder(dirpath, lbl, description=description)
+
+    monkeypatch.setattr(pseudos, "download_sssp", fake_download_sssp)
+    monkeypatch.setattr(pseudos, "install_sssp", fake_install_sssp)
+
+    installed = []
+    panel = pseudos._SsspInstallPanel(installed.append)
+
+    for configuration, _label in zip(configs, labels, strict=True):
+        panel.configuration.value = configuration
+        panel._install()
+        for _ in range(100):
+            if not panel.install_btn.disabled:
+                break
+            time.sleep(0.05)
+        assert not panel.install_btn.disabled
+        assert "Installed" in panel.status.value, panel.status.value
+
+    assert len(installed) == 2
+    for label in labels:
+        query = QueryBuilder().append(pseudos.SsspFamily, filters={"label": label})
+        assert query.count() == 1
 
 
 def test_custom_family_install_panel_validation(aiida_profile_clean):
